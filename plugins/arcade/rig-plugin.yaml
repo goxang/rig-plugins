@@ -1,11 +1,14 @@
 name: arcade
-version: 1.3.0
-description: a Games tab of terminal panes (snake and tic-tac-toe in Go; a game that is waiting uses no CPU)
+version: 1.4.0
+description: a Games tab of terminal panes (snake, sudoku, tic-tac-toe, 2048 and tetris in bash; a game that is waiting uses no CPU)
 publisher: goxang
 views:
   Games:
     slot: {tab: {key: G}}
     tabs:
-      Snake: {widget: terminal, command: "rig-std tool snake"}
-      "Tic Tac Toe": {widget: terminal, command: "rig-std tool tictactoe"}
+      Snake: {widget: terminal, dir: ., command: "bash snake.sh"}
+      "Tic Tac Toe": {widget: terminal, dir: ., command: "bash tictactoe.sh"}
+      "2048": {widget: terminal, dir: ., command: "bash 2048.sh"}
+      Tetris: {widget: terminal, dir: ., command: "bash tetris.sh"}
+      Sudoku: {widget: terminal, dir: ., command: "bash sudoku.sh"}
       Shell: {widget: terminal, keep: true}
