@@ -1,6 +1,6 @@
 name: arcade
 version: 1.4.0
-description: a Games tab of terminal panes (snake, sudoku, tic-tac-toe, 2048 and tetris in bash; a game that is waiting uses no CPU)
+description: a Games tab of terminal panes (snake, sudoku, tic-tac-toe, 2048, tetris and pac-man in bash; a game that is waiting uses no CPU)
 publisher: goxang
 views:
   Games:
@@ -11,4 +11,5 @@ views:
       "2048": {widget: terminal, dir: ., command: "bash 2048.sh"}
       Tetris: {widget: terminal, dir: ., command: "bash tetris.sh"}
       Sudoku: {widget: terminal, dir: ., command: "bash sudoku.sh"}
+      "Pac-Man": {widget: terminal, dir: ., command: "bash pacman.sh"}
       Shell: {widget: terminal, keep: true}
