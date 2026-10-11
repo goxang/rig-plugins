@@ -1,0 +1,4 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"ssh","version":"dev","protocol":"rig/1","provides":{"sources":{"hosts.actions":{"args":{"properties":{},"type":"object"}},"hosts.list":{"args":{"properties":{},"type":"object"}}},"actions":{"hosts.run-action":{"effect":"write","args":{"properties":{"args":{},"name":{"type":"string"}},"required":["name"],"type":"object"}},"hosts.shell":{"effect":"write","args":{"properties":{"command":{},"host":{"type":"string"}},"required":["host"],"type":"object"}}},"implements":["hosts/1"]}}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

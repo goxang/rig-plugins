@@ -1,4 +1,4 @@
-// fakeai stands in for Claude Code under jig's built-in AI: it starts the MCP server jig hands it and
+// fakeai stands in for Claude Code under rig's built-in AI: it starts the MCP server rig hands it and
 // makes the tool calls in $FAKEAI_SCRIPT instead of a model's, printing stream-json as Claude Code does.
 package main
 
@@ -31,7 +31,7 @@ func main() {
 			_ = json.Unmarshal([]byte(os.Args[i+1]), &cfg)
 		}
 	}
-	srv := cfg.MCPServers["jig"]
+	srv := cfg.MCPServers["rig"]
 	cmd := exec.Command(srv.Command, srv.Args...)
 	cmd.Env = os.Environ()
 	for k, v := range srv.Env {
@@ -79,7 +79,7 @@ func main() {
 	}
 	emit(map[string]any{"type": "system", "subtype": "init", "session_id": "fakeai"})
 	for _, s := range steps {
-		emit(map[string]any{"type": "assistant", "message": map[string]any{"content": []any{map[string]any{"type": "tool_use", "name": "mcp__jig__" + s.Tool, "input": s.Args}}}})
+		emit(map[string]any{"type": "assistant", "message": map[string]any{"content": []any{map[string]any{"type": "tool_use", "name": "mcp__rig__" + s.Tool, "input": s.Args}}}})
 		var res struct {
 			Content []struct{ Text string } `json:"content"`
 			IsError bool                    `json:"isError"`

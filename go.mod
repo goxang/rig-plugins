@@ -1,12 +1,12 @@
-module github.com/goxang/jig-plugins
+module github.com/goxang/rig-plugins
 
 go 1.26.5
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-containerregistry v0.20.3
-	github.com/goxang/jig v0.18.2-0.20261011121130-923b6766c775
-	github.com/goxang/jig/sdk v0.0.0-20261011121130-923b6766c775
+	github.com/goxang/rig v0.25.1-0.20261011211747-a83316dff13f
+	github.com/goxang/rig/sdk v0.0.0-20261011211747-a83316dff13f
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/microsoft/go-mssqldb v1.9.5
 	github.com/redis/go-redis/v9 v9.18.0
@@ -74,4 +74,4 @@ require (
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.77 // indirect
 )
 
-tool github.com/goxang/jig/cmd/jig
+tool github.com/goxang/rig/cmd/rig

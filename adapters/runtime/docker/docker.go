@@ -17,11 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/localhost"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/internal/localhost"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -33,13 +33,13 @@ type Options struct {
 	Registry string            `yaml:"registry"`
 	Env      map[string]string `yaml:"env"`
 	// Publish exposes the first replica's ports on 127.0.0.1 (random host ports unless docker.publish sets them);
-	// off, jig reaches services by container IP.
+	// off, rig reaches services by container IP.
 	Publish *bool `yaml:"publish"`
-	// Host is the daemon (ssh://user@server, tcp://server:2376) and Context a docker context; jig's
+	// Host is the daemon (ssh://user@server, tcp://server:2376) and Context a docker context; rig's
 	// docker calls use them, health checks and forwards reach an ssh daemon's containers through ssh -L.
 	Host    string `yaml:"host"`
 	Context string `yaml:"context"`
-	// Compose hands the services to a docker compose project: jig finds its containers by compose's
+	// Compose hands the services to a docker compose project: rig finds its containers by compose's
 	// labels and starts, stops, scales and deploys through docker compose, so the compose file stays
 	// the one definition.
 	Compose *Compose `yaml:"compose"`
@@ -59,7 +59,7 @@ type Section struct {
 	Publish   map[string]int    `yaml:"publish"` // service port name -> host port
 	ExtraArgs []string          `yaml:"extra_args"`
 	Labels    map[string]string `yaml:"labels"`
-	// Container adopts an existing container by name (one made by docker compose, say): jig starts
+	// Container adopts an existing container by name (one made by docker compose, say): rig starts
 	// and stops it but never removes or recreates it.
 	Container string `yaml:"container"`
 	// Bind is the host address published ports listen on (default 127.0.0.1; 0.0.0.0 lets a kind
@@ -94,7 +94,7 @@ func New(env core.Env, c *spec.Component) (any, error) {
 		return nil, err
 	}
 	if r.project == "" {
-		r.project = "jig"
+		r.project = "rig"
 	}
 	if r.opt.Network == "" {
 		r.opt.Network = r.project
@@ -193,10 +193,10 @@ func (r *Runtime) containers(ctx context.Context, filter ...string) ([]container
 	if r.opt.Compose != nil {
 		return r.list(ctx, append([]string{"label=com.docker.compose.project=" + r.opt.Compose.Project}, filter...)...)
 	}
-	return r.list(ctx, append([]string{"label=jig.project=" + r.project}, filter...)...)
+	return r.list(ctx, append([]string{"label=rig.project=" + r.project}, filter...)...)
 }
 
-// serviceOf is the jig service a container belongs to, by jig's or compose's labels.
+// serviceOf is the rig service a container belongs to, by rig's or compose's labels.
 func (r *Runtime) serviceOf(c container) string {
 	if r.opt.Compose != nil {
 		if c.Labels["com.docker.compose.project"] != r.opt.Compose.Project {
@@ -204,10 +204,10 @@ func (r *Runtime) serviceOf(c container) string {
 		}
 		return c.Labels["com.docker.compose.service"]
 	}
-	if c.Labels["jig.project"] != r.project {
+	if c.Labels["rig.project"] != r.project {
 		return ""
 	}
-	return c.Labels["jig.service"]
+	return c.Labels["rig.service"]
 }
 
 func (r *Runtime) list(ctx context.Context, filter ...string) ([]container, error) {
@@ -247,7 +247,7 @@ func (r *Runtime) of(ctx context.Context, s *spec.Service) ([]container, error) 
 	if r.opt.Compose != nil {
 		return r.containers(ctx, "label=com.docker.compose.service="+s.Name)
 	}
-	return r.containers(ctx, "label=jig.service="+s.Name)
+	return r.containers(ctx, "label=rig.service="+s.Name)
 }
 
 // StatusAll lists this machine's containers once and answers for every service from that list.
@@ -399,7 +399,7 @@ func (r *Runtime) Deploy(ctx context.Context, s *spec.Service, rel core.Release)
 		}
 		c := r.compose(append(args, s.Name)...)
 		if rel.Image != "" {
-			c.Env = []string{"JIG_IMAGE=" + rel.Image} // image: ${JIG_IMAGE:-...} in the compose file takes it
+			c.Env = []string{"RIG_IMAGE=" + rel.Image} // image: ${RIG_IMAGE:-...} in the compose file takes it
 		}
 		return c.Run(ctx)
 	}
@@ -456,7 +456,7 @@ func (r *Runtime) network(ctx context.Context) error {
 	if r.docker("network", "inspect", r.opt.Network).Run(ctx) == nil {
 		return nil
 	}
-	err := r.docker("network", "create", "--label", "jig.project="+r.project, r.opt.Network).Run(ctx)
+	err := r.docker("network", "create", "--label", "rig.project="+r.project, r.opt.Network).Run(ctx)
 	if err != nil && strings.Contains(err.Error(), "already exists") {
 		return nil
 	}
@@ -470,9 +470,9 @@ func (r *Runtime) run(ctx context.Context, s *spec.Service, img string, i int, e
 		cname = sec.Container
 	}
 	args := []string{"run", "-d", "--name", cname, "--network", r.opt.Network, "--network-alias", s.Name,
-		"--label", "jig.project=" + r.project, "--label", "jig.service=" + s.Name, "--restart", "unless-stopped"}
+		"--label", "rig.project=" + r.project, "--label", "rig.service=" + s.Name, "--restart", "unless-stopped"}
 	if e := r.env.Environment(); e != nil {
-		args = append(args, "--label", "jig.env="+e.Name)
+		args = append(args, "--label", "rig.env="+e.Name)
 	}
 	for k, v := range sec.Labels {
 		args = append(args, "--label", k+"="+v)
@@ -689,7 +689,7 @@ func (r *Runtime) Forward(ctx context.Context, t core.Target) (string, error) {
 	return addr, err
 }
 
-// first is the service's first container: adopted, compose's, jig's, or one named like the service.
+// first is the service's first container: adopted, compose's, rig's, or one named like the service.
 func (r *Runtime) first(ctx context.Context, svc string) string {
 	if s, ok := r.env.Project().Services[svc]; ok {
 		if c := r.section(s).Container; c != "" {

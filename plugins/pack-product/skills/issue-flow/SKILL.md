@@ -5,7 +5,7 @@ description: create issues for someone, do an issue (or all of mine) on a branch
 
 # From issue to merge request
 
-Find the actions with jig_find (tracker, scm); call them with jig_call. Writes ask the user first.
+Find the actions with rig_find (tracker, scm); call them with rig_call. Writes ask the user first.
 
 ## Create an issue for someone
 
@@ -15,7 +15,7 @@ an email or `me`). Reply with the key and its URL.
 ## Do an issue
 
 1. `tracker.issue key: KEY` for the details; ask only what the issue leaves open.
-2. Branch from the default branch: `git switch -c KEY-short-slug` (the key leads, so jig links it).
+2. Branch from the default branch: `git switch -c KEY-short-slug` (the key leads, so rig links it).
 3. Implement, run the project's tests, commit (`KEY: what changed`), `git push -u origin HEAD`.
 4. `tracker.update key: KEY append: "branch: KEY-short-slug"`.
 5. `scm.open source: KEY-short-slug title: "KEY summary" body: <what changed, how it was tested, the issue URL>`.

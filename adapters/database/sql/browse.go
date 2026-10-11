@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goxang/jig/core"
+	"github.com/goxang/rig/core"
 )
 
 // browseSQL is per dialect: what lists a database's objects and what reads one (%s: a quoted literal).

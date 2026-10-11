@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig/sdk"
 )
 
 func TestDiscover(t *testing.T) {

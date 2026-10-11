@@ -1,6 +1,0 @@
-{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"jig","version":"1.0.0"},"protocols":["jig/1"]}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"compose","version":"dev","protocol":"jig/1","provides":{"importers":{"compose":{"files":["compose.yaml","compose.yml","docker-compose.yaml","docker-compose.yml"]}}},"capabilities":["import"]}}}
-{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"import","params":{"importer":"compose","files":["compose.yaml"],"dir":"."}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{"fragment":{"services":{"db":{"build":null,"delay":"0s","depends_on":[],"env":{},"env_file":[],"extends":null,"groups":[],"health":null,"image":"postgres:16","manual":false,"metrics":null,"ports":{"pg":5432},"pprof":null,"replicas":null,"role":"infra","run":null,"shared":false,"watch":null},"web":{"build":{"args":{},"command":[],"context":".","dockerfile":"Dockerfile","go":""},"delay":"0s","depends_on":["db"],"env":{},"env_file":[],"extends":null,"groups":[],"health":null,"image":"","manual":false,"metrics":null,"ports":{"http":8000},"pprof":null,"replicas":null,"role":"app","run":null,"shared":false,"watch":null}}},"watch":["compose.yaml"]}}}
-{"dir":">","msg":{"jsonrpc":"2.0","id":3,"method":"shutdown","params":{}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":3,"result":{}}}

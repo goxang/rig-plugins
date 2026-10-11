@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/goxang/jig/contracts"
+	"github.com/goxang/rig/contracts"
 )
 
 type Cmd struct {

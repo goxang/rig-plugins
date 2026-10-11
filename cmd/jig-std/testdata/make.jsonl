@@ -1,6 +1,0 @@
-{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"jig","version":"1.0.0"},"protocols":["jig/1"]}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"make","version":"dev","protocol":"jig/1","provides":{"importers":{"make":{"files":["Makefile","makefile","GNUmakefile"]}}},"capabilities":["import"]}}}
-{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"import","params":{"importer":"make","files":["Makefile"],"dir":"."}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{"fragment":{"tasks":{"build":{"help":"build the binary","group":"make","steps":["make build"]}}},"watch":["Makefile"]}}}
-{"dir":">","msg":{"jsonrpc":"2.0","id":3,"method":"shutdown","params":{}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":3,"result":{}}}

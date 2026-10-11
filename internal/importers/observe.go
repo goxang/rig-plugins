@@ -159,7 +159,7 @@ var labelValues = regexp.MustCompile(`label_values\(\s*(?:(.*\S)\s*,)?\s*(\w+)\s
 func grafanaToPanel(p grafanaPanel) map[string]any {
 	var qs []map[string]any
 	for _, t := range p.Targets {
-		// __auto is Grafana's "label set" legend: jig's default
+		// __auto is Grafana's "label set" legend: rig's default
 		if t.Expr != "" && !t.Hide {
 			qs = append(qs, map[string]any{"query": t.Expr, "legend": strings.TrimPrefix(t.Legend, "__auto")})
 		}

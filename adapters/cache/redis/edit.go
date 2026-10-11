@@ -8,12 +8,12 @@ import (
 
 	goredis "github.com/redis/go-redis/v9"
 
-	"github.com/goxang/jig/core"
+	"github.com/goxang/rig/core"
 )
 
 func (r *Cache) db(ctx context.Context, path []string) (*goredis.Client, error) {
 	if len(path) == 0 {
-		return nil, fmt.Errorf("pick a database: whole databases empty with `jig do <cache> flushdb`")
+		return nil, fmt.Errorf("pick a database: whole databases empty with `rig do <cache> flushdb`")
 	}
 	n := dbNum(path[0])
 	if n < 0 {
@@ -62,7 +62,7 @@ func (r *Cache) Delete(ctx context.Context, path []string, t core.Table, rows []
 		return c.ZRem(ctx, key, cells(0)...).Err()
 	case "list":
 		// LREM goes by value, so the items are first marked by index
-		const gone = "\x00jig-deleted\x00"
+		const gone = "\x00rig-deleted\x00"
 		p := c.TxPipeline()
 		for _, i := range rows {
 			p.LSet(ctx, key, int64(i), gone)

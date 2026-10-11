@@ -1,4 +1,0 @@
-{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"jig","version":"1.0.0"},"protocols":["jig/1"]}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"runtime","version":"dev","protocol":"jig/1","provides":{"sources":{"logs.query":{"args":{"properties":{"follow":{"type":"boolean"},"instance":{"type":"string"},"match":{"type":"string"},"regex":{"type":"boolean"},"services":{},"since":{"type":"string"},"tail":{"type":"integer"}},"type":"object"},"stream":true}},"implements":["logs/1"]},"capabilities":["stream"]}}}
-{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

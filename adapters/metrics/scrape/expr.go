@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/goxang/jig/core"
+	"github.com/goxang/rig/core"
 )
 
 // A small PromQL subset, enough for dashboard panels without a Prometheus server:

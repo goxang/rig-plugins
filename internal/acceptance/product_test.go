@@ -1,4 +1,4 @@
-// Package acceptance runs jig's built-in AI end to end over the official plugins, with a scripted
+// Package acceptance runs rig's built-in AI end to end over the official plugins, with a scripted
 // stand-in for the model (testdata/fakeai) and recorded forge APIs (testdata/*.json).
 package acceptance
 
@@ -12,7 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/goxang/jig-plugins/internal/forge/forgetest"
+	"github.com/goxang/rig-plugins/internal/forge/forgetest"
 )
 
 type step struct {
@@ -23,16 +23,16 @@ type step struct {
 }
 
 func call(action string, args map[string]any, expect string) step {
-	return step{Tool: "jig_call", Args: map[string]any{"action": action, "args": args, "user_request": "run the agent"}, Expect: expect}
+	return step{Tool: "rig_call", Args: map[string]any{"action": action, "args": args, "user_request": "run the agent"}, Expect: expect}
 }
 
 func read(source string, args map[string]any, expect string) step {
-	return step{Tool: "jig_read", Args: map[string]any{"source": source, "args": args}, Expect: expect}
+	return step{Tool: "rig_read", Args: map[string]any{"source": source, "args": args}, Expect: expect}
 }
 
 type world struct {
 	t   *testing.T
-	jig string
+	rig string
 	dir string
 	env []string
 }
@@ -44,16 +44,16 @@ func (w *world) run(script []step, args ...string) string {
 	if err := os.WriteFile(file, raw, 0o600); err != nil {
 		w.t.Fatal(err)
 	}
-	return w.jigOK(append([]string{"FAKEAI_SCRIPT=" + file}, w.env...), args...)
+	return w.rigOK(append([]string{"FAKEAI_SCRIPT=" + file}, w.env...), args...)
 }
 
-func (w *world) jigOK(env []string, args ...string) string {
+func (w *world) rigOK(env []string, args ...string) string {
 	w.t.Helper()
-	c := exec.Command(w.jig, args...)
+	c := exec.Command(w.rig, args...)
 	c.Dir, c.Env = w.dir, append(os.Environ(), env...)
 	out, err := c.CombinedOutput()
 	if err != nil {
-		w.t.Fatalf("jig %s: %v\n%s", strings.Join(args, " "), err, out)
+		w.t.Fatalf("rig %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
 	return string(out)
 }
@@ -62,12 +62,12 @@ func (w *world) jigOK(env []string, args ...string) string {
 func (w *world) approveAll() []string {
 	w.t.Helper()
 	var ran []string
-	for _, line := range strings.Split(w.jigOK(w.env, "--brief", "inbox"), "\n")[1:] {
+	for _, line := range strings.Split(w.rigOK(w.env, "--brief", "inbox"), "\n")[1:] {
 		f := strings.Split(line, "\t")
 		if len(f) < 4 || f[1] != "pending" {
 			continue
 		}
-		w.jigOK(w.env, "inbox", "approve", f[0])
+		w.rigOK(w.env, "inbox", "approve", f[0])
 		ran = append(ran, f[3])
 	}
 	return ran
@@ -86,11 +86,11 @@ func build(t *testing.T, out, pkg string) string {
 // by pack-product's agents: every write waits in the inbox until a person approves it.
 func TestProductFlow(t *testing.T) {
 	if testing.Short() {
-		t.Skip("builds jig")
+		t.Skip("builds rig")
 	}
 	bin := t.TempDir()
-	jig := build(t, bin, "github.com/goxang/jig/cmd/jig")
-	std := build(t, bin, "github.com/goxang/jig-plugins/cmd/jig-std")
+	rig := build(t, bin, "github.com/goxang/rig/cmd/rig")
+	std := build(t, bin, "github.com/goxang/rig-plugins/cmd/rig-std")
 	fake := build(t, bin, "./testdata/fakeai")
 	if err := os.Rename(fake, filepath.Join(bin, "claude")); err != nil {
 		t.Fatal(err)
@@ -111,22 +111,22 @@ func TestProductFlow(t *testing.T) {
 	api := forgetest.New(t, routes)
 
 	home := t.TempDir()
-	w := &world{t: t, jig: jig, dir: t.TempDir(), env: []string{
+	w := &world{t: t, rig: rig, dir: t.TempDir(), env: []string{
 		"HOME=" + home, "XDG_CONFIG_HOME=" + filepath.Join(home, "config"), "XDG_DATA_HOME=" + filepath.Join(home, "data"),
 		"XDG_STATE_HOME=" + filepath.Join(home, "state"), "XDG_CACHE_HOME=" + filepath.Join(home, "cache"),
-		"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH"), "JIG_TRUST=project", "NO_COLOR=1",
+		"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH"), "RIG_TRUST=project", "NO_COLOR=1",
 	}}
 	inst := exec.Command(std, "install")
 	inst.Env = append(os.Environ(), w.env...)
 	if out, err := inst.CombinedOutput(); err != nil {
-		t.Fatalf("jig-std install: %v\n%s", err, out)
+		t.Fatalf("rig-std install: %v\n%s", err, out)
 	}
-	w.jigOK(w.env, "ai", "config", "backend=claude")
+	w.rigOK(w.env, "ai", "config", "backend=claude")
 
 	var pack struct {
 		Agents map[string]any `yaml:"agents"`
 	}
-	raw, err = os.ReadFile("../../plugins/pack-product/jig-plugin.yaml")
+	raw, err = os.ReadFile("../../plugins/pack-product/rig-plugin.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,13 +145,13 @@ func TestProductFlow(t *testing.T) {
 		},
 		"agents": pack.Agents,
 	})
-	if err := os.WriteFile(filepath.Join(w.dir, "jig.yaml"), project, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(w.dir, "rig.yaml"), project, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	// spec to stories: the agent drafts from the page; nothing reaches Jira before approval
 	w.run([]step{
-		{Tool: "jig_find", Args: map[string]any{"query": "create issue"}, Expect: "jira.tracker.create"},
+		{Tool: "rig_find", Args: map[string]any{"query": "create issue"}, Expect: "jira.tracker.create"},
 		read("confluence.docs.read", map[string]any{"id": "100"}, "Retry on timeout and 5xx only"),
 		call("jira.tracker.create", map[string]any{"summary": "Retry failed bank calls", "description": "Retry on timeout and 5xx only. Spec: confluence page 100", "type": "Story"}, "waits for approval"),
 		call("jira.tracker.create", map[string]any{"summary": "Retry count on the receipt", "description": "Show the retry count on the receipt page. Spec: confluence page 100", "type": "Story"}, "waits for approval"),
@@ -201,23 +201,23 @@ func TestProductFlow(t *testing.T) {
 
 	// an agent's write outside its approve list is refused, not queued
 	w.run([]step{
-		{Tool: "jig_call", Args: map[string]any{"action": "jira.tracker.assign", "args": map[string]any{"key": "SHOP-7", "assignee": "me"}}, Fails: true},
+		{Tool: "rig_call", Args: map[string]any{"action": "jira.tracker.assign", "args": map[string]any{"key": "SHOP-7", "assignee": "me"}}, Fails: true},
 	}, "agent", "run", "analyst")
 
 	// the built-in AI finds the install action and installs a plugin, once a person approves it
 	arcade, _ := filepath.Abs("../../plugins/arcade")
 	w.run([]step{
-		{Tool: "jig_find", Args: map[string]any{"query": "install plugin"}, Expect: "plugin.add"},
+		{Tool: "rig_find", Args: map[string]any{"query": "install plugin"}, Expect: "plugin.add"},
 		call("plugin.add", map[string]any{"names": []string{arcade}}, "waits for approval"),
 	}, "ai", "install the arcade plugin")
-	if strings.Contains(w.jigOK(w.env, "plugin", "ls"), "arcade") {
+	if strings.Contains(w.rigOK(w.env, "plugin", "ls"), "arcade") {
 		t.Fatal("arcade was installed before approval")
 	}
-	if ran := w.approveAll(); len(ran) != 1 || !strings.Contains(w.jigOK(w.env, "plugin", "ls"), "arcade") {
-		t.Fatalf("approved %v; arcade not installed:\n%s", ran, w.jigOK(w.env, "plugin", "ls"))
+	if ran := w.approveAll(); len(ran) != 1 || !strings.Contains(w.rigOK(w.env, "plugin", "ls"), "arcade") {
+		t.Fatalf("approved %v; arcade not installed:\n%s", ran, w.rigOK(w.env, "plugin", "ls"))
 	}
 
-	audit, _ := os.ReadFile(filepath.Join(w.dir, ".jig", "dev", "audit.jsonl"))
+	audit, _ := os.ReadFile(filepath.Join(w.dir, ".rig", "dev", "audit.jsonl"))
 	if n := strings.Count(string(audit), `"approver":"user:`); n != 8 {
 		t.Errorf("audit records %d approvals, want 8:\n%s", n, audit)
 	}

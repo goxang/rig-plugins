@@ -16,12 +16,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/kubectx"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/manifest"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/internal/kubectx"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/manifest"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -159,13 +159,13 @@ func New(env core.Env, c *spec.Component) (any, error) {
 // Init checks options; adapters embedding Runtime call it after filling Opt.
 func (r *Runtime) Init() error {
 	if r.Opt.Context == "" {
-		return errors.New("kubernetes runtime needs `context` or `server`: jig never uses kubectl's current context implicitly")
+		return errors.New("kubernetes runtime needs `context` or `server`: rig never uses kubectl's current context implicitly")
 	}
 	if r.Opt.Namespace == "" {
 		r.Opt.Namespace = "default"
 	}
 	if r.Opt.StateConfigMap == "" {
-		r.Opt.StateConfigMap = "jig-state"
+		r.Opt.StateConfigMap = "rig-state"
 	}
 	if r.Opt.NodeShellImage == "" {
 		r.Opt.NodeShellImage = "busybox:1.36"
@@ -636,7 +636,7 @@ func (r *Runtime) Objects(s *spec.Service) ([]*manifest.Object, *manifest.Object
 func (r *Runtime) vars(ctx context.Context) func(string) (string, bool) {
 	state, _ := r.LoadState(ctx)
 	return func(n string) (string, bool) {
-		// `jig vars set` wins over jig.yaml, so a namespace can be pointed at other databases without an edit
+		// `rig vars set` wins over rig.yaml, so a namespace can be pointed at other databases without an edit
 		if v, ok := state["var."+n]; ok {
 			return v, true
 		}
@@ -690,7 +690,7 @@ func (r *Runtime) render(ctx context.Context, s *spec.Service, rel core.Release,
 			img = r.env.DefaultImage(ctx, s)
 		}
 		if img == "" {
-			return nil, fmt.Errorf("%s: no image yet: run `jig build %s` (or set image, or k8s.manifests)", s.Name, s.Name)
+			return nil, fmt.Errorf("%s: no image yet: run `rig build %s` (or set image, or k8s.manifests)", s.Name, s.Name)
 		}
 		n := s.CountOr(1)
 		if rel.Replicas > 0 {
@@ -716,7 +716,7 @@ func (r *Runtime) render(ctx context.Context, s *spec.Service, rel core.Release,
 	return manifest.Render(objs, w, manifest.RenderOptions{
 		NodePorts: r.nodePorts(ctx, objs), FreeNodePorts: freeNodePorts,
 		Vars: r.vars(ctx), Image: rel.Image, Container: r.section(s).Container, Env: env, Replicas: rep, Capabilities: r.caps(),
-		Labels: map[string]string{"app.kubernetes.io/managed-by": "jig"},
+		Labels: map[string]string{"app.kubernetes.io/managed-by": "rig"},
 	})
 }
 
@@ -750,7 +750,7 @@ func (r *Runtime) Deploy(ctx context.Context, s *spec.Service, rel core.Release)
 }
 
 // ApplyManifests applies objects as they are written, with the environment's manifest variables
-// filled in: what jig would deploy, for objects no service owns (or before one does).
+// filled in: what rig would deploy, for objects no service owns (or before one does).
 func (r *Runtime) ApplyManifests(ctx context.Context, objs []*manifest.Object) error {
 	if r.Opt.CreateNamespace {
 		_ = r.ensureNamespace(ctx)
@@ -867,8 +867,8 @@ func (r *Runtime) Close() error {
 
 func (r *Runtime) LoadState(ctx context.Context) (map[string]string, error) {
 	m, err := r.loadState(ctx, r.Opt.StateConfigMap)
-	if err == nil && len(m) == 0 && r.Opt.StateConfigMap == "jig-state" {
-		// a namespace rig managed: its state is read here and saved as jig-state on the next change
+	if err == nil && len(m) == 0 && r.Opt.StateConfigMap == "rig-state" {
+		// a namespace rig managed: its state is read here and saved as rig-state on the next change
 		return r.loadState(ctx, "rig-state")
 	}
 	return m, err
@@ -901,7 +901,7 @@ func (r *Runtime) SaveState(ctx context.Context, m map[string]string) error {
 	}
 	cm := map[string]any{
 		"apiVersion": "v1", "kind": "ConfigMap",
-		"metadata": map[string]any{"name": r.Opt.StateConfigMap, "labels": map[string]string{"app.kubernetes.io/managed-by": "jig"}},
+		"metadata": map[string]any{"name": r.Opt.StateConfigMap, "labels": map[string]string{"app.kubernetes.io/managed-by": "rig"}},
 		"data":     m,
 	}
 	raw, _ := json.Marshal(cm)
@@ -920,7 +920,7 @@ func (r *Runtime) caps() []string {
 }
 
 func generate(s *spec.Service, sec Section, image string, env map[string]string, replicas int, caps []string) ([]byte, error) {
-	labels := map[string]string{"app.kubernetes.io/name": s.Name, "app.kubernetes.io/managed-by": "jig"}
+	labels := map[string]string{"app.kubernetes.io/name": s.Name, "app.kubernetes.io/managed-by": "rig"}
 	sel := map[string]string{"app.kubernetes.io/name": s.Name}
 	var envList []map[string]string
 	for _, k := range sortedKeys(env) {
@@ -1225,7 +1225,7 @@ func hpaManifest(workload string, b core.Bounds) ([]byte, error) {
 	}
 	return json.Marshal(map[string]any{
 		"apiVersion": "autoscaling/v2", "kind": "HorizontalPodAutoscaler",
-		"metadata": map[string]any{"name": name, "labels": map[string]string{"app.kubernetes.io/managed-by": "jig"}},
+		"metadata": map[string]any{"name": name, "labels": map[string]string{"app.kubernetes.io/managed-by": "rig"}},
 		"spec": map[string]any{
 			"scaleTargetRef": map[string]string{"apiVersion": "apps/v1", "kind": k, "name": name},
 			"minReplicas":    b.Min, "maxReplicas": b.Max, "metrics": metrics,
@@ -1297,7 +1297,7 @@ func (r *Runtime) Bridge(ctx context.Context, s *spec.Service, ports map[int]str
 	for k := range ips {
 		ip = k
 	}
-	labels := map[string]string{"app.kubernetes.io/managed-by": "jig", "jig.dev/bridge": "true"}
+	labels := map[string]string{"app.kubernetes.io/managed-by": "rig", "rig.dev/bridge": "true"}
 	name := r.section(s).Service
 	docs := []any{
 		map[string]any{"apiVersion": "v1", "kind": "Service", "metadata": map[string]any{"name": name, "labels": labels},

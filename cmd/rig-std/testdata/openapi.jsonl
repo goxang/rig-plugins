@@ -1,0 +1,6 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"openapi","version":"dev","protocol":"rig/1","provides":{"importers":{"openapi":{"files":["openapi.yaml","openapi.json","swagger.yaml","swagger.json"]}}},"capabilities":["import"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"import","params":{"importer":"openapi","files":["openapi.yaml"],"dir":"."}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{"fragment":{"components":{"pets":{"addr":"${PETS_URL:-http://localhost:8080}","kind":"query","type":"http"}},"queries":{"get-pets":{"group":"pets/pets","help":"list pets","query":"GET /pets","source":"pets"}}},"watch":["openapi.yaml"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":3,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":3,"result":{}}}

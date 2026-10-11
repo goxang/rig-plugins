@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/forge"
 )
 
 func TestDoomed(t *testing.T) {

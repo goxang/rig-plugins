@@ -19,10 +19,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig-plugins/internal/httpx"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig-plugins/internal/httpx"
+	"github.com/goxang/rig/sdk"
 )
 
 type Tag struct {
@@ -211,7 +211,7 @@ func open(c *sdk.Ctx) (backend, error) {
 }
 
 type pruneArgs struct {
-	Repository string `json:"repository" jig:"required" desc:"an image path, or a Nexus repository name"`
+	Repository string `json:"repository" rig:"required" desc:"an image path, or a Nexus repository name"`
 	Keep       int    `json:"keep" desc:"newest tags kept per image (default 5)"`
 	Match      string `json:"match" desc:"only tags matching this regex are counted and pruned"`
 }
@@ -236,7 +236,7 @@ func (a pruneArgs) doomed(c *sdk.Ctx) (backend, []Tag, error) {
 
 func Register(p *sdk.Plugin) {
 	p.Source("registry.tags", func(c *sdk.Ctx, in struct {
-		Repository string `json:"repository" jig:"required" desc:"an image path, or a Nexus repository name"`
+		Repository string `json:"repository" rig:"required" desc:"an image path, or a Nexus repository name"`
 	}) (*sdk.Frame, error) {
 		b, err := open(c)
 		if err != nil {

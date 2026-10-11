@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/httpx"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/httpx"
+	"github.com/goxang/rig/sdk"
 )
 
 type GitHub struct{ *forge.Client }

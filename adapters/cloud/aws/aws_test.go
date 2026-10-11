@@ -3,7 +3,7 @@ package aws
 import (
 	"testing"
 
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig/sdk"
 )
 
 func TestParseQuery(t *testing.T) {

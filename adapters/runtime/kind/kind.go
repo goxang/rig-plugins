@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goxang/jig-plugins/adapters/runtime/kubernetes"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/adapters/runtime/kubernetes"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -45,7 +45,7 @@ func New(env core.Env, c *spec.Component) (any, error) {
 		return nil, err
 	}
 	if o.Cluster == "" {
-		o.Cluster = "jig"
+		o.Cluster = "rig"
 	}
 	if o.Context == "" {
 		o.Context = "kind-" + o.Cluster
@@ -219,7 +219,7 @@ func (r *Runtime) create(ctx context.Context, _ []string, out io.Writer) error {
 		if err := cmd.Attach(ctx, strings.NewReader(cfg), out, out); err != nil {
 			return err
 		}
-		// kind switches the current context; give the user theirs back, jig always names its own
+		// kind switches the current context; give the user theirs back, rig always names its own
 		if p := strings.TrimSpace(string(previous)); p != "" {
 			_ = sh.New("kubectl", "config", "use-context", p).Run(ctx)
 		}

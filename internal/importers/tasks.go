@@ -1,4 +1,4 @@
-// Package importers turns other tools' files into jig.yaml fragments: task runners into tasks, CI jobs
+// Package importers turns other tools' files into rig.yaml fragments: task runners into tasks, CI jobs
 // into tasks, Procfiles into services, dotenv files into vars, Grafana dashboards into dashboards,
 // Prometheus rules into alerts and OpenAPI specs into queries.
 package importers
@@ -27,7 +27,7 @@ func tasks(ts map[string]task) map[string]any {
 	return map[string]any{"tasks": ts}
 }
 
-// shell escapes jig's own ${...} expansion out of a command: a task step writes $$ for a shell $.
+// shell escapes rig's own ${...} expansion out of a command: a task step writes $$ for a shell $.
 func shell(s string) string { return strings.ReplaceAll(s, "$", "$$") }
 
 var (
@@ -143,7 +143,7 @@ func Procfile(path, _ string) (map[string]any, error) {
 	return map[string]any{"services": svcs}, nil
 }
 
-// Dotenv makes a .env file's values jig vars, so ${NAME} works anywhere in jig.yaml.
+// Dotenv makes a .env file's values rig vars, so ${NAME} works anywhere in rig.yaml.
 func Dotenv(path, _ string) (map[string]any, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {

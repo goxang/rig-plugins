@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/sdk"
 )
 
-// Dir is the repository commands run in: the project jig opened the plugin for.
+// Dir is the repository commands run in: the project rig opened the plugin for.
 func Dir() string {
-	if d := os.Getenv("JIG_PROJECT"); d != "" {
+	if d := os.Getenv("RIG_PROJECT"); d != "" {
 		return d
 	}
 	return "."
@@ -274,7 +274,7 @@ func Register(p *sdk.Plugin, export Export) {
 	}, sdk.Describe("a unified diff, a row per line; an untracked path shows as all added"))
 
 	p.Source("vcs.blame", func(c *sdk.Ctx, in struct {
-		Path string `json:"path" jig:"required"`
+		Path string `json:"path" rig:"required"`
 		Ref  string `json:"ref"`
 	}) (*sdk.Frame, error) {
 		args := []string{"blame", "--line-porcelain"}
@@ -320,7 +320,7 @@ func Register(p *sdk.Plugin, export Export) {
 	})
 
 	p.Action("vcs.checkout", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Branch string `json:"branch" jig:"required"`
+		Branch string `json:"branch" rig:"required"`
 		Create bool   `json:"create" desc:"create the branch"`
 	}) (*sdk.Result, error) {
 		if in.Create {
@@ -344,7 +344,7 @@ func Register(p *sdk.Plugin, export Export) {
 	}, sdk.Describe("switch to a branch, a remote branch or a release tag (detached)"))
 
 	p.Action("vcs.commit", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Message string   `json:"message" jig:"required"`
+		Message string   `json:"message" rig:"required"`
 		All     bool     `json:"all" desc:"stage every tracked change first (the default when nothing is staged)"`
 		Paths   []string `json:"paths" desc:"stage these first"`
 	}) (*sdk.Result, error) {
@@ -380,7 +380,7 @@ func Register(p *sdk.Plugin, export Export) {
 	}, sdk.Describe("stage a path for the next commit, or every change; unstage takes it back out"))
 
 	p.Action("vcs.discard", sdk.EffectDanger, func(c *sdk.Ctx, in struct {
-		Path string `json:"path" jig:"required"`
+		Path string `json:"path" rig:"required"`
 	}) (*sdk.Result, error) {
 		if u, _ := Git(c, "ls-files", "--others", "--exclude-standard", "--", in.Path); u != "" {
 			return run(c, "clean", "-f", "--", in.Path)
@@ -411,7 +411,7 @@ func Register(p *sdk.Plugin, export Export) {
 		if in.Pop != "" {
 			return run(c, "stash", "pop", in.Pop)
 		}
-		return run(c, "stash", "push", "--include-untracked", "-m", cmp.Or(in.Message, "jig"))
+		return run(c, "stash", "push", "--include-untracked", "-m", cmp.Or(in.Message, "rig"))
 	})
 
 	p.Action("vcs.fetch", sdk.EffectWrite, func(c *sdk.Ctx, _ sdk.Empty) (*sdk.Result, error) {
@@ -419,19 +419,19 @@ func Register(p *sdk.Plugin, export Export) {
 	}, sdk.Describe("fetch every remote, with its tags, dropping branches deleted there"))
 
 	p.Action("vcs.merge", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Branch string `json:"branch" jig:"required"`
+		Branch string `json:"branch" rig:"required"`
 	}) (*sdk.Result, error) {
 		return run(c, "merge", "--no-edit", in.Branch)
 	}, sdk.Describe("merge a branch into the current one"))
 
 	p.Action("vcs.rebase", sdk.EffectDanger, func(c *sdk.Ctx, in struct {
-		Onto string `json:"onto" jig:"required"`
+		Onto string `json:"onto" rig:"required"`
 	}) (*sdk.Result, error) {
 		return run(c, "rebase", in.Onto)
 	}, sdk.Describe("replay the current branch on another (it rewrites the branch's commits)"))
 
 	p.Action("vcs.branch-delete", sdk.EffectDanger, func(c *sdk.Ctx, in struct {
-		Branch string `json:"branch" jig:"required"`
+		Branch string `json:"branch" rig:"required"`
 		Force  bool   `json:"force" desc:"also when it is not merged"`
 	}) (*sdk.Result, error) {
 		if strings.HasPrefix(in.Branch, "origin/") {
@@ -441,19 +441,19 @@ func Register(p *sdk.Plugin, export Export) {
 	}, sdk.Describe("delete a local branch, or a remote one named origin/x"))
 
 	p.Action("vcs.cherry-pick", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Commit string `json:"commit" jig:"required"`
+		Commit string `json:"commit" rig:"required"`
 	}) (*sdk.Result, error) {
 		return run(c, "cherry-pick", in.Commit)
 	}, sdk.Describe("apply a commit onto the current branch"))
 
 	p.Action("vcs.revert", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Commit string `json:"commit" jig:"required"`
+		Commit string `json:"commit" rig:"required"`
 	}) (*sdk.Result, error) {
 		return run(c, "revert", "--no-edit", in.Commit)
 	}, sdk.Describe("a new commit that undoes one"))
 
 	p.Action("vcs.tag", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Name string `json:"name" jig:"required"`
+		Name string `json:"name" rig:"required"`
 		Ref  string `json:"ref" desc:"default HEAD"`
 		Push bool   `json:"push"`
 	}) (*sdk.Result, error) {
@@ -467,13 +467,13 @@ func Register(p *sdk.Plugin, export Export) {
 	}, sdk.Describe("tag a commit, and push the tag on request"))
 
 	p.Action("vcs.stash-drop", sdk.EffectDanger, func(c *sdk.Ctx, in struct {
-		Ref string `json:"ref" jig:"required" desc:"stash@{0}"`
+		Ref string `json:"ref" rig:"required" desc:"stash@{0}"`
 	}) (*sdk.Result, error) {
 		return run(c, "stash", "drop", in.Ref)
 	}, sdk.Describe("throw a stash away"))
 
 	p.Action("vcs.stash-apply", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Ref string `json:"ref" jig:"required"`
+		Ref string `json:"ref" rig:"required"`
 	}) (*sdk.Result, error) {
 		return run(c, "stash", "apply", in.Ref)
 	}, sdk.Describe("apply a stash and keep it"))
@@ -488,7 +488,7 @@ func Register(p *sdk.Plugin, export Export) {
 	}, sdk.Describe("fold the changes into the last commit (it rewrites that commit)"))
 
 	p.Action("vcs.export", sdk.EffectRead, func(c *sdk.Ctx, in struct {
-		Ref string `json:"ref" jig:"required"`
+		Ref string `json:"ref" rig:"required"`
 	}) (*sdk.Result, error) {
 		dir, err := export(c, in.Ref)
 		if err != nil {

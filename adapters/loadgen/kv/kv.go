@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -78,7 +78,7 @@ func (g *Gen) scale(ctx context.Context, n int) error {
 	for _, name := range g.opt.Services {
 		s, ok := g.env.Project().Services[name]
 		if !ok {
-			return fmt.Errorf("no service %q in the load generator's services list: check jig.yaml", name)
+			return fmt.Errorf("no service %q in the load generator's services list: check rig.yaml", name)
 		}
 		rt := g.env.Runtime()
 		if n > 0 {

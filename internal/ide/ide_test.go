@@ -31,7 +31,7 @@ func TestShowInServices(t *testing.T) {
 }
 
 func TestShellQuote(t *testing.T) {
-	for in, want := range map[string]string{"parser": "parser", "/a b/jig": "'/a b/jig'", "it's": `'it'\''s'`} {
+	for in, want := range map[string]string{"parser": "parser", "/a b/rig": "'/a b/rig'", "it's": `'it'\''s'`} {
 		if got := shellQuote(in); got != want {
 			t.Errorf("shellQuote(%q) = %s, want %s", in, got, want)
 		}

@@ -1,0 +1,13 @@
+name: rig-usage
+version: 1.1.0
+description: ":usage — CPU and memory of rig and each plugin it runs, refreshed every 2 seconds"
+publisher: goxang
+permissions: {exec: [rig-std, ps], env: ["*"]}
+sources:
+  usage: {run: rig-std tool usage, format: ndjson, cache: 1s}
+views:
+  Usage:
+    slot: {command: usage}
+    widget: table
+    source: rig-usage.usage
+    refresh: 2s

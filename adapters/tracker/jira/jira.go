@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig-plugins/internal/httpx"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig-plugins/internal/httpx"
+	"github.com/goxang/rig/sdk"
 )
 
 type Jira struct {
@@ -245,7 +245,7 @@ func Register(p *sdk.Plugin) {
 	})
 
 	p.Source("tracker.issue", func(c *sdk.Ctx, in struct {
-		Key string `json:"key" jig:"required"`
+		Key string `json:"key" rig:"required"`
 	}) (*sdk.Frame, error) {
 		j, err := open(c)
 		if err != nil {
@@ -266,8 +266,8 @@ func Register(p *sdk.Plugin) {
 	})
 
 	p.Action("tracker.transition", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Key    string `json:"key" jig:"required"`
-		Status string `json:"status" jig:"required" desc:"the target status or transition name"`
+		Key    string `json:"key" rig:"required"`
+		Status string `json:"status" rig:"required" desc:"the target status or transition name"`
 	}) (*sdk.Result, error) {
 		j, err := open(c)
 		if err != nil {
@@ -277,8 +277,8 @@ func Register(p *sdk.Plugin) {
 	})
 
 	p.Action("tracker.comment", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Key  string `json:"key" jig:"required"`
-		Body string `json:"body" jig:"required"`
+		Key  string `json:"key" rig:"required"`
+		Body string `json:"body" rig:"required"`
 	}) (*sdk.Result, error) {
 		j, err := open(c)
 		if err != nil {
@@ -288,7 +288,7 @@ func Register(p *sdk.Plugin) {
 	})
 
 	p.Action("tracker.update", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Key         string `json:"key" jig:"required"`
+		Key         string `json:"key" rig:"required"`
 		Summary     string `json:"summary" desc:"new title; empty keeps it"`
 		Description string `json:"description" desc:"new description; empty keeps it"`
 		Append      string `json:"append" desc:"a line added under the description (a branch, an MR link)"`
@@ -324,7 +324,7 @@ func Register(p *sdk.Plugin) {
 	})
 
 	p.Action("tracker.create", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Summary     string `json:"summary" jig:"required"`
+		Summary     string `json:"summary" rig:"required"`
 		Description string `json:"description"`
 		Project     string `json:"project" desc:"default plugins.jira.project"`
 		Type        string `json:"type" desc:"issue type (default Task)"`
@@ -368,8 +368,8 @@ func Register(p *sdk.Plugin) {
 	})
 
 	p.Action("tracker.assign", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Key      string `json:"key" jig:"required"`
-		Assignee string `json:"assignee" jig:"required" desc:"a name or email, or me"`
+		Key      string `json:"key" rig:"required"`
+		Assignee string `json:"assignee" rig:"required" desc:"a name or email, or me"`
 	}) (*sdk.Result, error) {
 		j, err := open(c)
 		if err != nil {
@@ -383,8 +383,8 @@ func Register(p *sdk.Plugin) {
 	})
 
 	p.Action("tracker.link", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Key  string `json:"key" jig:"required"`
-		To   string `json:"to" jig:"required"`
+		Key  string `json:"key" rig:"required"`
+		To   string `json:"to" rig:"required"`
 		Type string `json:"type" desc:"link type (default Relates)"`
 	}) (*sdk.Result, error) {
 		j, err := open(c)
@@ -438,7 +438,7 @@ func Register(p *sdk.Plugin) {
 		End   time.Time `json:"end"`
 	}
 	p.Source("tracker.sprints", func(c *sdk.Ctx, in struct {
-		Board string `json:"board" jig:"required"`
+		Board string `json:"board" rig:"required"`
 	}) (*sdk.Frame, error) {
 		j, err := open(c)
 		if err != nil {

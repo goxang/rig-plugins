@@ -8,7 +8,7 @@ import (
 func TestParse(t *testing.T) {
 	for in, want := range map[string]string{
 		"git@gitlab.com:group/sub/app.git":  "gitlab.com group/sub/app",
-		"https://github.com/goxang/jig.git": "github.com goxang/jig",
+		"https://github.com/goxang/rig.git": "github.com goxang/rig",
 		"ssh://git@git.corp:2222/team/svc":  "git.corp team/svc",
 		"https://user:tok@gitlab.corp/a/b":  "gitlab.corp a/b",
 	} {

@@ -14,7 +14,7 @@ func TestLoadStateFallsBackToRig(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	r := &Runtime{Opt: Options{StateConfigMap: "jig-state"}}
+	r := &Runtime{Opt: Options{StateConfigMap: "rig-state"}}
 	m, err := r.LoadState(context.Background())
 	if err != nil || m["tag"] != "v1" {
 		t.Fatalf("state %v, %v", m, err)

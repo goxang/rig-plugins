@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig-plugins/internal/httpx"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig-plugins/internal/httpx"
+	"github.com/goxang/rig/sdk"
 )
 
 type Confluence struct {
@@ -285,7 +285,7 @@ func Register(p *sdk.Plugin) {
 	}, sdk.Cache("30s"))
 
 	p.Source("docs.read", func(c *sdk.Ctx, in struct {
-		ID string `json:"id" jig:"required"`
+		ID string `json:"id" rig:"required"`
 	}) (*sdk.Frame, error) {
 		cf, err := Open(c)
 		if err != nil {
@@ -323,8 +323,8 @@ func Register(p *sdk.Plugin) {
 
 	p.Action("docs.write", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
 		ID       string `json:"id" desc:"the page to update; empty makes a new one"`
-		Title    string `json:"title" jig:"required"`
-		Markdown string `json:"markdown" jig:"required"`
+		Title    string `json:"title" rig:"required"`
+		Markdown string `json:"markdown" rig:"required"`
 		Parent   string `json:"parent" desc:"parent page id for a new page"`
 		Space    string `json:"space" desc:"space key (default plugins.confluence.space)"`
 	}) (*sdk.Result, error) {

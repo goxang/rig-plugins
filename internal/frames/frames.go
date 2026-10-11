@@ -1,4 +1,4 @@
-// Package frames builds jig/1 frames from slices of structs, a column per json-tagged field.
+// Package frames builds rig/1 frames from slices of structs, a column per json-tagged field.
 package frames
 
 import (
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig/sdk"
 )
 
 var (

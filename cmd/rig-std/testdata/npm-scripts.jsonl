@@ -1,0 +1,6 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"npm-scripts","version":"dev","protocol":"rig/1","provides":{"importers":{"npm-scripts":{"files":["package.json"]}}},"capabilities":["import"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"import","params":{"importer":"npm-scripts","files":["package.json"],"dir":"."}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{"fragment":{"tasks":{"dev":{"help":"vite","group":"npm","steps":["npm run dev -- \"$$@\""]},"lint":{"help":"eslint .","group":"npm","steps":["npm run lint -- \"$$@\""]}}},"watch":["package.json"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":3,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":3,"result":{}}}

@@ -1,5 +1,5 @@
 // Package http is a built-in open-model load generator: requests go out at a fixed rate whatever
-// the latency (no coordinated omission), from this process, for as long as jig runs.
+// the latency (no coordinated omission), from this process, for as long as rig runs.
 package http
 
 import (
@@ -13,14 +13,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goxang/jig-plugins/adapters/loadgen"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/adapters/loadgen"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
-	plugin.Register(core.KindLoad, "http", "built-in constant-rate HTTP generator (runs inside jig)", New)
+	plugin.Register(core.KindLoad, "http", "built-in constant-rate HTTP generator (runs inside rig)", New)
 }
 
 type Options struct {

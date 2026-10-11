@@ -1,0 +1,6 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"godev","version":"dev","protocol":"rig/1","provides":{"importers":{"godev":{"files":[".godev.yaml"]}}},"capabilities":["import"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"import","params":{"importer":"godev","files":[".godev.yaml"],"dir":"."}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{"fragment":{"services":{"worker":{"build":{"args":{},"command":[],"context":"","dockerfile":"","go":"./cmd/worker"},"delay":"0s","depends_on":[],"env":{},"env_file":[],"extends":null,"groups":["bg"],"health":null,"image":"","manual":false,"metrics":null,"ports":{},"pprof":null,"replicas":null,"role":"app","run":{"args":["--fast"],"command":[],"dir":""},"shared":false,"watch":null}}},"watch":[".godev.yaml"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":3,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":3,"result":{}}}

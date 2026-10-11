@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig/core"
+	"github.com/goxang/rig/core"
 )
 
-// Host is the jig service the database runs in: the one svc:// in addr names.
+// Host is the rig service the database runs in: the one svc:// in addr names.
 func (d *DB) Host() string {
 	rest, ok := strings.CutPrefix(d.opt.Addr, "svc://")
 	if !ok {
@@ -127,7 +127,7 @@ func (d *DB) native(ctx context.Context, t tool, open func() (io.Reader, io.Writ
 		if hostErr != nil {
 			return hostErr
 		}
-		return fmt.Errorf("%s is not installed here, and %s is not a jig service whose container has it: install %s", t.name, d.opt.Addr, t.name)
+		return fmt.Errorf("%s is not installed here, and %s is not a rig service whose container has it: install %s", t.name, d.opt.Addr, t.name)
 	}
 	if hostErr != nil {
 		fmt.Fprintf(log, "%v; trying inside %s\n", hostErr, svc)
@@ -169,9 +169,9 @@ func (d *DB) inContainer(ctx context.Context, svc string, argv []string, in io.R
 func (d *DB) mssqlBackup(ctx context.Context, file string, log io.Writer) error {
 	svc := d.Host()
 	if svc == "" {
-		return errors.New("SQL Server backs up to its own disk: a snapshot needs it in a jig service's container (addr: svc://...)")
+		return errors.New("SQL Server backs up to its own disk: a snapshot needs it in a rig service's container (addr: svc://...)")
 	}
-	db, tmp := d.dbName(), fmt.Sprintf("/tmp/jig-%d.bak", time.Now().UnixNano())
+	db, tmp := d.dbName(), fmt.Sprintf("/tmp/rig-%d.bak", time.Now().UnixNano())
 	fmt.Fprintf(log, "BACKUP DATABASE [%s] inside %s\n", db, svc)
 	if _, err := d.exec(ctx, "master", fmt.Sprintf("BACKUP DATABASE [%s] TO DISK = N'%s' WITH COPY_ONLY, INIT", db, tmp)); err != nil {
 		return err
@@ -195,9 +195,9 @@ func (d *DB) mssqlBackup(ctx context.Context, file string, log io.Writer) error 
 func (d *DB) mssqlRestore(ctx context.Context, file string, log io.Writer) error {
 	svc := d.Host()
 	if svc == "" {
-		return errors.New("SQL Server restores from its own disk: a restore needs it in a jig service's container (addr: svc://...)")
+		return errors.New("SQL Server restores from its own disk: a restore needs it in a rig service's container (addr: svc://...)")
 	}
-	db, tmp := d.dbName(), fmt.Sprintf("/tmp/jig-%d.bak", time.Now().UnixNano())
+	db, tmp := d.dbName(), fmt.Sprintf("/tmp/rig-%d.bak", time.Now().UnixNano())
 	f, err := os.Open(file)
 	if err != nil {
 		return err

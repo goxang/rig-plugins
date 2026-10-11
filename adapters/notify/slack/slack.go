@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/httpx"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/httpx"
+	"github.com/goxang/rig/sdk"
 )
 
 // Message is Slack's mrkdwn: the title in bold on its own line, then the body.
@@ -47,7 +47,7 @@ func Register(p *sdk.Plugin) {
 	p.Action("notify.send", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
 		To    string `json:"to" desc:"a channel (default plugins.slack.channel)"`
 		Title string `json:"title"`
-		Body  string `json:"body" jig:"required"`
+		Body  string `json:"body" rig:"required"`
 	}) (*sdk.Result, error) {
 		webhook := forge.Config(c, "webhook")
 		if webhook == "" {

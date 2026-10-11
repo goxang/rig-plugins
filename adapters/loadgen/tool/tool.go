@@ -1,4 +1,4 @@
-// Package tool drives an external load tool (k6, vegeta, ghz) as a jig load generator: the tool runs
+// Package tool drives an external load tool (k6, vegeta, ghz) as a rig load generator: the tool runs
 // as a child process at the current rate and its per-request results stream back into the counters.
 package tool
 
@@ -17,11 +17,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goxang/jig-plugins/adapters/loadgen"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/adapters/loadgen"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -160,7 +160,7 @@ func (g *Gen) Status(context.Context) (core.LoadStatus, error) {
 }
 
 func (g *Gen) loop(ctx context.Context, url string) {
-	tmp, err := os.MkdirTemp("", "jig-"+g.name)
+	tmp, err := os.MkdirTemp("", "rig-"+g.name)
 	if err != nil {
 		g.fail(err)
 		return

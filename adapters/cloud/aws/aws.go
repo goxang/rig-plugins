@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/sdk"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/sdk"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -61,7 +61,7 @@ func CLI(profile, region string, args ...string) *sh.Cmd {
 	return sh.New("aws", append(args, "--output", "json")...)
 }
 
-// MetricQuery is a CloudWatch metric as jig queries it: "AWS/EC2 CPUUtilization InstanceId=i-1 Average".
+// MetricQuery is a CloudWatch metric as rig queries it: "AWS/EC2 CPUUtilization InstanceId=i-1 Average".
 type MetricQuery struct {
 	Namespace, Metric string
 	Dimensions        []string

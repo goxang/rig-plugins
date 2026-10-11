@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/adapters/vcs/git"
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/adapters/vcs/git"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/sdk"
 )
 
 type Release struct {
@@ -154,7 +154,7 @@ func (h helm) Diff(ctx context.Context, release string, from, to int) (string, e
 			from = to - 1
 		}
 	}
-	dir, err := os.MkdirTemp("", "jig-helm")
+	dir, err := os.MkdirTemp("", "rig-helm")
 	if err != nil {
 		return "", err
 	}
@@ -177,7 +177,7 @@ func (h helm) Diff(ctx context.Context, release string, from, to int) (string, e
 }
 
 type releaseArg struct {
-	Release   string `json:"release" jig:"required"`
+	Release   string `json:"release" rig:"required"`
 	Namespace string `json:"namespace"`
 }
 
@@ -214,7 +214,7 @@ func Register(p *sdk.Plugin) {
 
 	p.Action("helm.upgrade", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
 		releaseArg
-		Chart   string            `json:"chart" jig:"required" desc:"a chart path, repo/chart or oci:// reference"`
+		Chart   string            `json:"chart" rig:"required" desc:"a chart path, repo/chart or oci:// reference"`
 		Version string            `json:"version"`
 		Values  []string          `json:"values" desc:"values files"`
 		Set     map[string]string `json:"set"`

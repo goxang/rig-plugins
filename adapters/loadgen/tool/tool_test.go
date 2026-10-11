@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goxang/jig-plugins/adapters/loadgen"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/adapters/loadgen"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/spec"
 	"gopkg.in/yaml.v3"
 )
 

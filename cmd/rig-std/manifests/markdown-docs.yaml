@@ -1,0 +1,6 @@
+detect: {files: [docs, adr, docs/adr]}
+config:
+  dirs: {type: array, items: {type: string}, description: "folders and files to read; default docs, doc, adr, READMEs"}
+# rig's Files screen browses and previews local docs; this keeps the docs contract's own tab away
+views:
+  Docs: {slot: off, widget: text}

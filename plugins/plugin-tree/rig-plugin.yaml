@@ -1,0 +1,20 @@
+name: plugin-tree
+version: 1.1.0
+description: ":plugintree — the plugins as a dependency tree, how each talks to rig (RPC, script, yaml, MCP) and what it uses"
+publisher: goxang
+permissions: {exec: [rig, rig-std, ps], fs: ["/"], env: ["*"]}
+sources:
+  tree: {run: rig-std tool plugintree tree, format: ndjson, cache: 2s}
+  edges: {run: rig-std tool plugintree edges, format: ndjson, cache: 2s}
+views:
+  Plugin tree:
+    slot: {command: plugintree}
+    tabs:
+      Tree:
+        widget: table
+        source: plugin-tree.tree
+        fold: parent
+        refresh: 3s
+        columns: {id: {hide: true}, parent: {hide: true}, dir: {hide: true}, cpu: {title: cpu %}}
+      Graph: {widget: graph, source: plugin-tree.edges, center: rig, refresh: 10s}
+      Edges: {widget: table, source: plugin-tree.edges, refresh: 10s}

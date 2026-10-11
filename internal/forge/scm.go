@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/adapters/vcs/git"
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/adapters/vcs/git"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig/sdk"
 )
 
 type MR struct {
@@ -152,7 +152,7 @@ type service struct {
 // RegisterSCM serves scm/1 and tracker/1 from a forge opened per call.
 func RegisterSCM(p *sdk.Plugin, open func(*sdk.Ctx) (SCM, error), affected Affected) {
 	type mrArg struct {
-		MR string `json:"mr" jig:"required"`
+		MR string `json:"mr" rig:"required"`
 	}
 	p.Source("scm.mrs", func(c *sdk.Ctx, in struct {
 		State  string `json:"state" desc:"opened (default), merged, closed or all"`
@@ -268,8 +268,8 @@ func RegisterSCM(p *sdk.Plugin, open func(*sdk.Ctx) (SCM, error), affected Affec
 		return do(c, open, "merged "+in.MR, func(f SCM) error { return f.Merge(c, in.MR) })
 	})
 	p.Action("scm.comment", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		MR   string `json:"mr" jig:"required"`
-		Body string `json:"body" jig:"required"`
+		MR   string `json:"mr" rig:"required"`
+		Body string `json:"body" rig:"required"`
 	}) (*sdk.Result, error) {
 		return do(c, open, "commented on "+in.MR, func(f SCM) error { return f.Comment(c, in.MR, in.Body) })
 	})
@@ -290,7 +290,7 @@ func RegisterSCM(p *sdk.Plugin, open func(*sdk.Ctx) (SCM, error), affected Affec
 	}, sdk.Cache("15s"))
 
 	p.Source("scm.jobs", func(c *sdk.Ctx, in struct {
-		Pipeline string `json:"pipeline" jig:"required"`
+		Pipeline string `json:"pipeline" rig:"required"`
 	}) (*sdk.Frame, error) {
 		f, err := open(c)
 		if err != nil {
@@ -301,7 +301,7 @@ func RegisterSCM(p *sdk.Plugin, open func(*sdk.Ctx) (SCM, error), affected Affec
 	})
 
 	p.Stream("scm.log", func(c *sdk.Ctx, in struct {
-		Job    string `json:"job" jig:"required"`
+		Job    string `json:"job" rig:"required"`
 		Follow bool   `json:"follow" desc:"keep reading until the job ends"`
 	}, out *sdk.Out) error {
 		f, err := open(c)
@@ -332,7 +332,7 @@ func RegisterSCM(p *sdk.Plugin, open func(*sdk.Ctx) (SCM, error), affected Affec
 	}, sdk.Describe("a CI job's log, followed while it runs"))
 
 	p.Action("scm.retry", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Job string `json:"job" jig:"required"`
+		Job string `json:"job" rig:"required"`
 	}) (*sdk.Result, error) {
 		return do(c, open, "retried job "+in.Job, func(f SCM) error { return f.Retry(c, in.Job) })
 	})
@@ -361,7 +361,7 @@ func RegisterSCM(p *sdk.Plugin, open func(*sdk.Ctx) (SCM, error), affected Affec
 	}, sdk.Cache("30s"))
 
 	p.Source("tracker.issue", func(c *sdk.Ctx, in struct {
-		Key string `json:"key" jig:"required"`
+		Key string `json:"key" rig:"required"`
 	}) (*sdk.Frame, error) {
 		f, err := open(c)
 		if err != nil {
@@ -375,15 +375,15 @@ func RegisterSCM(p *sdk.Plugin, open func(*sdk.Ctx) (SCM, error), affected Affec
 	})
 
 	p.Action("tracker.transition", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Key    string `json:"key" jig:"required"`
-		Status string `json:"status" jig:"required" desc:"closed or open"`
+		Key    string `json:"key" rig:"required"`
+		Status string `json:"status" rig:"required" desc:"closed or open"`
 	}) (*sdk.Result, error) {
 		return do(c, open, in.Key+" "+in.Status, func(f SCM) error { return f.Transition(c, in.Key, in.Status) })
 	})
 
 	p.Action("tracker.comment", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
-		Key  string `json:"key" jig:"required"`
-		Body string `json:"body" jig:"required"`
+		Key  string `json:"key" rig:"required"`
+		Body string `json:"body" rig:"required"`
 	}) (*sdk.Result, error) {
 		return do(c, open, "commented on "+in.Key, func(f SCM) error { return f.IssueComment(c, in.Key, in.Body) })
 	})

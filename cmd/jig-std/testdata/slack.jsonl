@@ -1,4 +1,0 @@
-{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"jig","version":"1.0.0"},"protocols":["jig/1"]}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"slack","version":"dev","protocol":"jig/1","provides":{"actions":{"notify.send":{"effect":"write","args":{"properties":{"body":{"type":"string"},"title":{"type":"string"},"to":{"description":"a channel (default plugins.slack.channel)","type":"string"}},"required":["body"],"type":"object"}}},"implements":["notify/1"]}}}}
-{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

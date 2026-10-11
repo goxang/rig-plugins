@@ -22,9 +22,9 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/microsoft/go-mssqldb"
 
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 }
 
 // Seed is one step of filling a database: a SQL file run on it, or a shell command run from the
-// project directory with JIG_DB_ADDR (host:port, reachable from here) and JIG_DB_NAME set.
+// project directory with RIG_DB_ADDR (host:port, reachable from here) and RIG_DB_NAME set.
 type Seed struct {
 	File    string `yaml:"file"`
 	Command string `yaml:"command"`
@@ -46,7 +46,7 @@ type Options struct {
 	Password string            `yaml:"password"`
 	Database string            `yaml:"database"`
 	Params   map[string]string `yaml:"params"`
-	// Seed fills the database: jig data seed, and jig up when it starts the database empty.
+	// Seed fills the database: rig data seed, and rig up when it starts the database empty.
 	Seed  []Seed `yaml:"seed"`
 	Seeds []Seed `yaml:"seeds"` // the old name of seed
 	// Clear holds the statements `clear` runs to empty the run's data without recreating the database.
@@ -417,7 +417,7 @@ func (d *DB) seed(ctx context.Context, seeds []Seed, out io.Writer) error {
 			fmt.Fprintf(out, "seed: %s\n", s.Command)
 			cmd := exec.CommandContext(ctx, "sh", "-c", s.Command)
 			cmd.Dir = d.env.Project().Dir
-			cmd.Env = append(os.Environ(), "JIG_DB_ADDR="+strings.TrimPrefix(addr, "tcp://"), "JIG_DB_NAME="+db)
+			cmd.Env = append(os.Environ(), "RIG_DB_ADDR="+strings.TrimPrefix(addr, "tcp://"), "RIG_DB_NAME="+db)
 			cmd.Stdout, cmd.Stderr = out, out
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("seed %q: %w", s.Command, err)

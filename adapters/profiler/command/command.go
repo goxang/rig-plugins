@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -103,7 +103,7 @@ func (p *Profiler) Capture(ctx context.Context, r core.ProfileRequest) (core.Pro
 		"{seconds}":  strconv.Itoa(int(r.Duration.Seconds())),
 		"{duration}": r.Duration.String(),
 		"{pid}":      strconv.Itoa(pid),
-		"{out}":      "/tmp/jig-profile" + ext,
+		"{out}":      "/tmp/rig-profile" + ext,
 	}
 	if k.Where == "host" {
 		vars["{out}"] = file

@@ -1,6 +1,6 @@
 name: release
 
-# A v* tag packs every plugin for each platform, signs it with the JIG_SIGNING_KEY secret, publishes
+# A v* tag packs every plugin for each platform, signs it with the RIG_SIGNING_KEY secret, publishes
 # the archives as a GitHub release and commits the updated registry/index.json to main.
 on:
   push:
@@ -22,21 +22,21 @@ jobs:
       - name: build
         run: |
           for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
-            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "dist/bin/jig-std_${t%/*}_${t#*/}" ./cmd/jig-std
+            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "dist/bin/rig-std_${t%/*}_${t#*/}" ./cmd/rig-std
           done
-          go run ./cmd/jig-std install --relative dist/manifests
+          go run ./cmd/rig-std install --relative dist/manifests
       - name: pack and sign
         env:
-          JIG_SIGNING_KEY: ${{ secrets.JIG_SIGNING_KEY }}
+          RIG_SIGNING_KEY: ${{ secrets.RIG_SIGNING_KEY }}
         run: |
-          test -n "$JIG_SIGNING_KEY" || { echo "JIG_SIGNING_KEY is not set"; exit 1; }
+          test -n "$RIG_SIGNING_KEY" || { echo "RIG_SIGNING_KEY is not set"; exit 1; }
           mkdir -p registry && git show origin/main:registry/index.json > registry/index.json 2>/dev/null || rm -f registry/index.json
-          go run ./cmd/jig-index -version "$GITHUB_REF_NAME" -url "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          go run ./cmd/rig-index -version "$GITHUB_REF_NAME" -url "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/release/* --title "jig-plugins $GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" dist/release/* --title "rig-plugins $GITHUB_REF_NAME" --generate-notes
           git config user.name github-actions && git config user.email github-actions@users.noreply.github.com
           cp registry/index.json "$RUNNER_TEMP/index.json"
           git checkout -qf -B main origin/main

@@ -7,18 +7,18 @@ import (
 
 	goredis "github.com/redis/go-redis/v9"
 
-	"github.com/goxang/jig/core"
+	"github.com/goxang/rig/core"
 )
 
 type addrEnv struct{ core.Env }
 
 func (addrEnv) Resolve(_ context.Context, a string) (string, error) { return a, nil }
 
-// JIG_TEST_REDIS=host:port runs it against database 15, which it empties.
+// RIG_TEST_REDIS=host:port runs it against database 15, which it empties.
 func TestEdit(t *testing.T) {
-	addr := os.Getenv("JIG_TEST_REDIS")
+	addr := os.Getenv("RIG_TEST_REDIS")
 	if addr == "" {
-		t.Skip("JIG_TEST_REDIS not set")
+		t.Skip("RIG_TEST_REDIS not set")
 	}
 	ctx := context.Background()
 	c := goredis.NewClient(&goredis.Options{Addr: addr, DB: 15})

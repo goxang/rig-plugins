@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/goxang/jig-plugins/adapters/vcs/git"
-	"github.com/goxang/jig-plugins/internal/httpx"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/adapters/vcs/git"
+	"github.com/goxang/rig-plugins/internal/httpx"
+	"github.com/goxang/rig/sdk"
 )
 
 // Client is one service's API at Base, authenticated.
@@ -31,7 +31,7 @@ func Config(c *sdk.Ctx, key string) string {
 	return ""
 }
 
-// Token is config `token`, else the first of the secrets jig has a value for, else the same names in the environment.
+// Token is config `token`, else the first of the secrets rig has a value for, else the same names in the environment.
 func Token(c *sdk.Ctx, secrets ...string) string {
 	if t := Config(c, "token"); t != "" {
 		return t
@@ -39,7 +39,7 @@ func Token(c *sdk.Ctx, secrets ...string) string {
 	return Secret(c, secrets...)
 }
 
-// Secret is the first of the secrets jig has a value for, else the same names in the environment.
+// Secret is the first of the secrets rig has a value for, else the same names in the environment.
 func Secret(c *sdk.Ctx, secrets ...string) string {
 	for _, s := range secrets {
 		if v, err := c.Secret(s); err == nil && v != "" {

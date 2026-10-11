@@ -29,10 +29,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/plugin"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/plugin"
+	"github.com/goxang/rig/spec"
 )
 
 func init() {
@@ -49,7 +49,7 @@ type Options struct {
 	Tags     []string `yaml:"tags"`
 	Insecure bool     `yaml:"insecure"`
 	// Debug builds for a debugger (no optimisation, symbols kept, source paths as on this machine)
-	// and puts a static dlv at /usr/local/bin/dlv: `jig debug` and GoLand attach to it in the pod.
+	// and puts a static dlv at /usr/local/bin/dlv: `rig debug` and GoLand attach to it in the pod.
 	Debug bool `yaml:"debug"`
 	// Dlv is the dlv binary to put in debug images; empty builds one (CGO off) and caches it.
 	Dlv string `yaml:"dlv"`
@@ -81,7 +81,7 @@ func New(env core.Env, c *spec.Component) (any, error) {
 
 func (b *Builder) Build(ctx context.Context, s *spec.Service, o core.BuildOptions) (string, error) {
 	ref := core.ImageRef(s, o.Registry, o.Tag)
-	tmp, err := os.MkdirTemp("", "jig-build-")
+	tmp, err := os.MkdirTemp("", "rig-build-")
 	if err != nil {
 		return "", err
 	}
@@ -167,7 +167,7 @@ func (b *Builder) Build(ctx context.Context, s *spec.Service, o core.BuildOption
 // Push sends an image from the local Docker daemon straight to its registry: docker push goes
 // through the daemon's proxy, which some networks break.
 func (b *Builder) Push(ctx context.Context, ref string, out io.Writer) error {
-	tmp, err := os.MkdirTemp("", "jig-push-")
+	tmp, err := os.MkdirTemp("", "rig-push-")
 	if err != nil {
 		return err
 	}
@@ -219,11 +219,11 @@ func (b *Builder) base(ctx context.Context, dir string) (v1.Image, error) {
 		return nil, err
 	}
 	goos, goarch, _ := strings.Cut(b.opt.Platform, "/")
-	// a registry base is kept a day in the user cache: a rebuild (jig watch) then needs no network,
+	// a registry base is kept a day in the user cache: a rebuild (rig watch) then needs no network,
 	// and a registry that is down falls back to the last copy
 	cached := ""
 	if dir, err := os.UserCacheDir(); err == nil {
-		cached = filepath.Join(dir, "jig", "base", strings.NewReplacer("/", "_", ":", "_", "@", "_").Replace(b.opt.Base+"-"+goos+"-"+goarch)+".tar")
+		cached = filepath.Join(dir, "rig", "base", strings.NewReplacer("/", "_", ":", "_", "@", "_").Replace(b.opt.Base+"-"+goos+"-"+goarch)+".tar")
 	}
 	if fi, err := os.Stat(cached); err == nil && time.Since(fi.ModTime()) < 24*time.Hour {
 		return tarball.ImageFromPath(cached, nil)
@@ -274,7 +274,7 @@ func (b *Builder) dlv(ctx context.Context, goos, goarch string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(cache, "jig", "dlv-"+dlvVersion+"-"+goos+"-"+goarch)
+	dir := filepath.Join(cache, "rig", "dlv-"+dlvVersion+"-"+goos+"-"+goarch)
 	bin := filepath.Join(dir, "dlv")
 	if _, err := os.Stat(bin); err == nil {
 		return bin, nil

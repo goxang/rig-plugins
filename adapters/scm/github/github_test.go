@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/forge/forgetest"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/forge/forgetest"
 )
 
 func TestGitHub(t *testing.T) {

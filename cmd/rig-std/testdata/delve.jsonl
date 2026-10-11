@@ -1,0 +1,4 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"delve","version":"dev","protocol":"rig/1","provides":{"actions":{"debugger.attach":{"effect":"write","args":{"properties":{"instance":{"type":"string"},"service":{"type":"string"}},"required":["service"],"type":"object"}},"debugger.detach":{"effect":"write","args":{"properties":{"service":{"type":"string"}},"required":["service"],"type":"object"}}},"implements":["debugger/1"]}}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

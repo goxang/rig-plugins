@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goxang/jig/core"
-	"github.com/goxang/jig/manifest"
-	"github.com/goxang/jig/spec"
+	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/manifest"
+	"github.com/goxang/rig/spec"
 )
 
 // LiveObject is one object of the namespace as JSON (`kubectl get -o json`).
@@ -69,7 +69,7 @@ func (r *Runtime) LiveObjects(ctx context.Context) ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
-// InjectedEnv names the env vars a deploy of s adds from jig.yaml, which a manifest synced back
+// InjectedEnv names the env vars a deploy of s adds from rig.yaml, which a manifest synced back
 // from the cluster should not take in.
 func (r *Runtime) InjectedEnv(s *spec.Service) map[string]bool {
 	out := map[string]bool{}

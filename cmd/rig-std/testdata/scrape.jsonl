@@ -1,0 +1,4 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"scrape","version":"dev","protocol":"rig/1","provides":{"sources":{"metrics.instant":{"args":{"properties":{"query":{"type":"string"}},"required":["query"],"type":"object"}},"metrics.query-language":{"args":{"properties":{},"type":"object"}},"metrics.range":{"args":{"properties":{"end":{"type":"string"},"query":{"type":"string"},"start":{"type":"string"},"step":{"type":"string"}},"required":["end","query","start"],"type":"object"}},"metrics.run-query":{"args":{"properties":{"query":{"type":"string"}},"required":["query"],"type":"object"}}},"implements":["metrics/1"]}}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

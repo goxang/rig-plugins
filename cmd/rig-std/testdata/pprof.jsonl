@@ -1,0 +1,4 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"pprof","version":"dev","protocol":"rig/1","provides":{"sources":{"profiles.kinds":{"args":{"properties":{},"type":"object"}}},"actions":{"profiles.capture":{"effect":"read","args":{"properties":{"dir":{"type":"string"},"duration":{"type":"string"},"instance":{"type":"string"},"kind":{"type":"string"},"service":{"type":"string"}},"required":["dir","kind","service"],"type":"object"}}},"implements":["profiles/1"]}}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

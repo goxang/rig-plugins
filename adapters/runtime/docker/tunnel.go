@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/goxang/jig-plugins/internal/sh"
+	"github.com/goxang/rig-plugins/internal/sh"
 )
 
 type tunnel struct {

@@ -1,4 +1,0 @@
-{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"jig","version":"1.0.0"},"protocols":["jig/1"]}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"vitest","version":"dev","protocol":"jig/1","provides":{"sources":{"tests.events":{"description":"runs the suite with vitest, through its JUnit reporter; each line is a go test -json event","args":{"properties":{"dir":{"type":"string"},"env":{"type":"object"},"run":{"type":"string"},"with":{"type":"object"}},"type":"object"},"stream":true}},"implements":["tests/1"]},"capabilities":["stream"]}}}
-{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
-{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

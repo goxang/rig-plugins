@@ -1,0 +1,6 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"grafana","version":"dev","protocol":"rig/1","provides":{"importers":{"grafana":{"files":["grafana","dashboards"]}}},"capabilities":["import"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"import","params":{"importer":"grafana","files":["grafana"],"dir":"."}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{"fragment":{"dashboards":{"api":{"help":"API","panels":[{"query":"sum(rate(http_requests_total[1m]))","title":"Requests"}]}}},"watch":["grafana"]}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":3,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":3,"result":{}}}

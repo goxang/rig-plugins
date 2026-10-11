@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/adapters/vcs/git"
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/adapters/vcs/git"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig/sdk"
 )
 
 // DefaultDirs are read when plugins.markdown-docs.dirs is not set; missing ones are skipped.
@@ -126,7 +126,7 @@ func Register(p *sdk.Plugin) {
 	}, sdk.Describe("the repository's Markdown pages"))
 
 	p.Source("docs.read", func(c *sdk.Ctx, in struct {
-		ID string `json:"id" jig:"required"`
+		ID string `json:"id" rig:"required"`
 	}) (*sdk.Frame, error) {
 		path, err := inside(git.Dir(), in.ID)
 		if err != nil {
@@ -150,8 +150,8 @@ func Register(p *sdk.Plugin) {
 
 	p.Action("docs.write", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
 		ID       string `json:"id" desc:"the page's path; empty makes a new page"`
-		Title    string `json:"title" jig:"required"`
-		Markdown string `json:"markdown" jig:"required"`
+		Title    string `json:"title" rig:"required"`
+		Markdown string `json:"markdown" rig:"required"`
 		Parent   string `json:"parent" desc:"directory for a new page (default the first docs dir)"`
 	}) (*sdk.Result, error) {
 		id := in.ID

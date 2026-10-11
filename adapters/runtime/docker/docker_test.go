@@ -16,7 +16,7 @@ func TestDaemonFlagsAndComposeLabels(t *testing.T) {
 	}
 	c := container{Labels: map[string]string{"com.docker.compose.project": "momentz", "com.docker.compose.service": "web"}}
 	if r.serviceOf(c) != "" {
-		t.Fatal("jig mode claimed a compose container")
+		t.Fatal("rig mode claimed a compose container")
 	}
 	r.opt.Compose = &Compose{Project: "momentz"}
 	if got := r.serviceOf(c); got != "web" {

@@ -1,5 +1,5 @@
 // Package terraform is iac/1 over Terraform or OpenTofu: stacks, plan, apply, outputs, drift and
-// state. A jig environment selects the stack's workspace of the same name when there is one.
+// state. A rig environment selects the stack's workspace of the same name when there is one.
 package terraform
 
 import (
@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goxang/jig-plugins/adapters/vcs/git"
-	"github.com/goxang/jig-plugins/internal/forge"
-	"github.com/goxang/jig-plugins/internal/frames"
-	"github.com/goxang/jig-plugins/internal/sh"
-	"github.com/goxang/jig/sdk"
+	"github.com/goxang/rig-plugins/adapters/vcs/git"
+	"github.com/goxang/rig-plugins/internal/forge"
+	"github.com/goxang/rig-plugins/internal/frames"
+	"github.com/goxang/rig-plugins/internal/sh"
+	"github.com/goxang/rig/sdk"
 )
 
 type Stack struct {
@@ -126,7 +126,7 @@ func open(c *sdk.Ctx, stack string) (*tf, error) {
 		return nil, fmt.Errorf("no stack %q; stacks: %s", stack, strings.Join(names, ", "))
 	}
 	t := &tf{bin: Binary(c), dir: filepath.Join(git.Dir(), dir), env: []string{"TF_IN_AUTOMATION=1"}}
-	if t.ws = t.workspace(c, cmp.Or(c.Call.Env, os.Getenv("JIG_ENV"))); t.ws != "" {
+	if t.ws = t.workspace(c, cmp.Or(c.Call.Env, os.Getenv("RIG_ENV"))); t.ws != "" {
 		t.env = append(t.env, "TF_WORKSPACE="+t.ws)
 	}
 	return t, nil
@@ -216,7 +216,7 @@ type stackArg struct {
 }
 
 func (t *tf) plan(c *sdk.Ctx) (*sdk.Result, error) {
-	planFile := filepath.Join(t.dir, ".terraform", "jig.tfplan")
+	planFile := filepath.Join(t.dir, ".terraform", "rig.tfplan")
 	code, err := t.stream(c, c.Line, "plan", "-input=false", "-no-color", "-out="+planFile)
 	if err != nil {
 		return nil, err
@@ -404,7 +404,7 @@ func Register(p *sdk.Plugin) {
 				d, err = t.drift(ctx, func(string) {})
 				cancel()
 				if d {
-					ck.Ok, ck.Message, ck.Hint = false, "infrastructure drifted from state", "jig run iac.plan stack="+n
+					ck.Ok, ck.Message, ck.Hint = false, "infrastructure drifted from state", "rig run iac.plan stack="+n
 				}
 			}
 			if err != nil {
