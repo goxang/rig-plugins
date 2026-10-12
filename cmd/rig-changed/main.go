@@ -104,48 +104,51 @@ func isGo(dir, name string) bool {
 // module packages its entries name (as in (*local.Runtime)(nil) or forge.RegisterSCM).
 func tables(dir string) (map[string][]string, error) {
 	fset := token.NewFileSet()
-	pk, err := parser.ParseDir(fset, filepath.Join(dir, "cmd", "rig-std"), func(i os.FileInfo) bool {
-		return !strings.HasSuffix(i.Name(), "_test.go")
-	}, 0)
+	entries, err := os.ReadDir(filepath.Join(dir, "cmd", "rig-std"))
 	if err != nil {
 		return nil, err
 	}
 	out := map[string][]string{}
-	for _, p := range pk {
-		for _, f := range p.Files {
-			imports := map[string]string{}
-			for _, im := range f.Imports {
-				ip, _ := strconv.Unquote(im.Path.Value)
-				if !strings.HasPrefix(ip, module+"/") {
-					continue
-				}
-				name := path.Base(ip)
-				if im.Name != nil {
-					name = im.Name.Name
-				}
-				imports[name] = ip
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, filepath.Join(dir, "cmd", "rig-std", e.Name()), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		imports := map[string]string{}
+		for _, im := range f.Imports {
+			ip, _ := strconv.Unquote(im.Path.Value)
+			if !strings.HasPrefix(ip, module+"/") {
+				continue
 			}
-			ast.Inspect(f, func(n ast.Node) bool {
-				kv, ok := n.(*ast.KeyValueExpr)
-				if !ok {
-					return true
-				}
-				lit, ok := kv.Key.(*ast.BasicLit)
-				if !ok || lit.Kind != token.STRING {
-					return true
-				}
-				key, _ := strconv.Unquote(lit.Value)
-				ast.Inspect(kv.Value, func(n ast.Node) bool {
-					if sel, ok := n.(*ast.SelectorExpr); ok {
-						if id, ok := sel.X.(*ast.Ident); ok && imports[id.Name] != "" {
-							out[key] = append(out[key], imports[id.Name])
-						}
+			name := path.Base(ip)
+			if im.Name != nil {
+				name = im.Name.Name
+			}
+			imports[name] = ip
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			kv, ok := n.(*ast.KeyValueExpr)
+			if !ok {
+				return true
+			}
+			lit, ok := kv.Key.(*ast.BasicLit)
+			if !ok || lit.Kind != token.STRING {
+				return true
+			}
+			key, _ := strconv.Unquote(lit.Value)
+			ast.Inspect(kv.Value, func(n ast.Node) bool {
+				if sel, ok := n.(*ast.SelectorExpr); ok {
+					if id, ok := sel.X.(*ast.Ident); ok && imports[id.Name] != "" {
+						out[key] = append(out[key], imports[id.Name])
 					}
-					return true
-				})
+				}
 				return true
 			})
-		}
+			return true
+		})
 	}
 	return out, nil
 }
