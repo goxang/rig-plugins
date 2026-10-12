@@ -24,3 +24,49 @@ jobs:
       - run: go vet ./...
       - run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
       - run: go test -race ./...
+
+  # Which plugins the change touches, from the files it edits and the packages those import. The jobs below
+  # build and pack only those: a rig-std binary when a Go plugin changed, an archive per touched plugin.
+  changed:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.c.outputs.plugins }}
+      go: ${{ steps.c.outputs.go }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - id: c
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          case "$BASE" in ''|0000000*) BASE=HEAD~1 ;; esac
+          out=$(go run ./cmd/rig-changed -base "$BASE")
+          echo "$out"
+          echo "plugins=$(jq -r '.plugins | join(",")' <<<"$out")" >> "$GITHUB_OUTPUT"
+          echo "go=$(jq -r '.go' <<<"$out")" >> "$GITHUB_OUTPUT"
+
+  pack:
+    needs: changed
+    if: needs.changed.outputs.plugins != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build rig-std for every platform (a Go plugin changed)
+        if: needs.changed.outputs.go == 'true'
+        run: |
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -trimpath -o "dist/bin/rig-std_${t%/*}_${t#*/}" ./cmd/rig-std
+          done
+      - name: pack the touched plugins
+        env:
+          PLUGINS: ${{ needs.changed.outputs.plugins }}
+        run: |
+          go run ./cmd/rig-std install --relative dist/manifests
+          go run ./cmd/rig-index -version 0.0.0 -url https://example.invalid -index dist/index.json -only "$PLUGINS"

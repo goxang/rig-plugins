@@ -5,6 +5,7 @@
 //	rig-std install --relative dist/manifests
 //	rig-index -version 1.0.0 -manifests dist/manifests -plugins plugins -bins dist/bin \
 //	  -out dist/release -url https://github.com/goxang/rig-plugins/releases/download/v1.0.0
+//	rig-index -only gitlab,jira ...   # just these: "@go" is every Go plugin; the index keeps the rest as it was
 //	rig-index keygen
 package main
 
@@ -39,6 +40,7 @@ func main() {
 		return
 	}
 	var r Release
+	var only string
 	flag.StringVar(&r.Version, "version", "", "release version, such as 1.0.0")
 	flag.StringVar(&r.Manifests, "manifests", "dist/manifests", "rig-std install --relative output")
 	flag.StringVar(&r.Plugins, "plugins", "plugins", "declarative plugins and packs, a directory each")
@@ -46,8 +48,12 @@ func main() {
 	flag.StringVar(&r.Out, "out", "dist/release", "where archives go")
 	flag.StringVar(&r.URL, "url", "", "where archives will be downloaded from")
 	flag.StringVar(&r.Index, "index", "registry/index.json", "the index to update")
+	flag.StringVar(&only, "only", "", "comma-separated plugins to release (@go: every Go plugin); default all")
 	flag.Parse()
 	r.Key = os.Getenv("RIG_SIGNING_KEY")
+	if only != "" {
+		r.Only = strings.Split(only, ",")
+	}
 	if r.Version == "" || r.URL == "" {
 		fail(fmt.Errorf("-version and -url are required"))
 	}
@@ -63,6 +69,12 @@ func fail(err error) {
 
 type Release struct {
 	Version, Manifests, Plugins, Bins, Out, URL, Index, Key string
+	// Only limits the release to these plugins; empty means all
+	Only []string
+}
+
+func (r *Release) wants(name string, goPlugin bool) bool {
+	return len(r.Only) == 0 || slices.Contains(r.Only, name) || goPlugin && slices.Contains(r.Only, "@go")
 }
 
 func (r *Release) Run() error {
@@ -77,9 +89,12 @@ func (r *Release) Run() error {
 		return err
 	}
 	bins, _ := filepath.Glob(filepath.Join(r.Bins, "rig-std_*"))
-	// one rig-std per platform, which every Go plugin's artifact lists as a shared file
+	// one rig-std per platform, which every released Go plugin's artifact lists as a shared file
 	std := map[string]host.Artifact{}
 	for _, bin := range bins {
+		if len(r.Only) > 0 && !r.releasesGo() {
+			break
+		}
 		plat := strings.Replace(strings.TrimSuffix(strings.TrimPrefix(filepath.Base(bin), "rig-std_"), ".exe"), "_", "/", 1)
 		data, err := os.ReadFile(bin)
 		if err != nil {
@@ -106,6 +121,9 @@ func (r *Release) Run() error {
 		}
 		for _, d := range dirs {
 			if !d.IsDir() {
+				continue
+			}
+			if !r.wants(d.Name(), root == r.Manifests) {
 				continue
 			}
 			dir := filepath.Join(root, d.Name())
@@ -144,10 +162,21 @@ func (r *Release) Run() error {
 			entries = append(entries, m)
 		}
 	}
-	for _, m := range entries {
-		ps := packs[m.Name]
-		slices.Sort(ps)
-		ix.Plugins[m.Name].Packs = ps
+	if len(r.Only) == 0 {
+		for _, m := range entries {
+			ps := packs[m.Name]
+			slices.Sort(ps)
+			ix.Plugins[m.Name].Packs = ps
+		}
+	} else {
+		// a partial release adds its packs to what the index already lists for each plugin
+		for dep, ps := range packs {
+			if e := ix.Plugins[dep]; e != nil {
+				e.Packs = append(e.Packs, ps...)
+				slices.Sort(e.Packs)
+				e.Packs = slices.Compact(e.Packs)
+			}
+		}
 	}
 	b, err := json.MarshalIndent(ix, "", "  ")
 	if err != nil {
@@ -158,6 +187,14 @@ func (r *Release) Run() error {
 	}
 	fmt.Printf("%d plugins, %d platforms, version %s\n", len(entries), len(bins), r.Version)
 	return os.WriteFile(r.Index, append(b, '\n'), 0o644)
+}
+
+// releasesGo is whether the release includes any Go plugin: the rig-std binaries are shared by them.
+func (r *Release) releasesGo() bool {
+	return len(r.Only) == 0 || slices.Contains(r.Only, "@go") || slices.ContainsFunc(r.Only, func(n string) bool {
+		_, err := os.Stat(filepath.Join(r.Manifests, n))
+		return err == nil
+	})
 }
 
 func provides(m *host.Manifest) map[string]any {

@@ -1,17 +1,26 @@
 name: release
 
-# A v* tag packs every plugin for each platform, signs it with the RIG_SIGNING_KEY secret, publishes
-# the archives as a GitHub release and commits the updated registry/index.json to main.
+# Every push to main that changes a plugin releases the next version of those plugins only: feat commits
+# bump the minor version, anything else the patch. A change that touches no plugin releases nothing.
+# The archives are signed with the RIG_SIGNING_KEY secret and registry/index.json is committed back.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release:
+  changed:
     runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.c.outputs.plugins }}
+      go: ${{ steps.c.outputs.go }}
+      tag: ${{ steps.c.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -19,26 +28,102 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: build
-        run: |
-          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
-            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "dist/bin/rig-std_${t%/*}_${t#*/}" ./cmd/rig-std
-          done
-          go run ./cmd/rig-std install --relative dist/manifests
-      - name: pack and sign
+      - id: c
         env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+          base=$BEFORE
+          case "$base" in ''|0000000*) base=${last:-HEAD~1} ;; esac
+          out=$(go run ./cmd/rig-changed -base "$base")
+          echo "$out"
+          plugins=$(jq -r '.plugins | join(",")' <<<"$out")
+          echo "plugins=$plugins" >> "$GITHUB_OUTPUT"
+          echo "go=$(jq -r '.go' <<<"$out")" >> "$GITHUB_OUTPUT"
+          [ -n "$plugins" ] || exit 0
+          IFS=. read -r major minor patch <<<"${last#v}"
+          major=${major:-1} minor=${minor:-0} patch=${patch:-0}
+          range=${last:+$last..}HEAD
+          if git log --format=%s "$range" | grep -qE '^[a-z]+(\([^)]*\))?!:|BREAKING CHANGE'; then
+            major=$((major + 1)); minor=0; patch=0
+          elif git log --format=%s "$range" | grep -qE '^feat(\([^)]*\))?:'; then
+            minor=$((minor + 1)); patch=0
+          else
+            patch=$((patch + 1))
+          fi
+          echo "tag=v$major.$minor.$patch" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changed
+    if: needs.changed.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux/amd64, linux/arm64, darwin/amd64, darwin/arm64]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      # one cache per target: setup-go's single key keeps only whichever target saved first
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: gobuild-${{ matrix.target }}-${{ hashFiles('go.sum') }}
+          restore-keys: gobuild-${{ matrix.target }}-
+      - env:
+          TARGET: ${{ matrix.target }}
+          TAG: ${{ needs.changed.outputs.tag }}
+        run: |
+          os=${TARGET%/*} arch=${TARGET#*/}
+          mkdir -p dist/bin
+          GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$TAG" -o "dist/bin/rig-std_${os}_${arch}" ./cmd/rig-std
+          echo "ASSET=rig-std_${os}_${arch}" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ASSET }}
+          path: dist/bin/*
+          retention-days: 1
+
+  release:
+    needs: [changed, build]
+    # build is skipped when only declarative plugins changed
+    if: always() && needs.changed.outputs.plugins != '' && needs.changed.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - if: needs.build.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/bin
+          merge-multiple: true
+      - name: pack, tag and release only the touched plugins
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.changed.outputs.tag }}
+          PLUGINS: ${{ needs.changed.outputs.plugins }}
           RIG_SIGNING_KEY: ${{ secrets.RIG_SIGNING_KEY }}
         run: |
           test -n "$RIG_SIGNING_KEY" || { echo "RIG_SIGNING_KEY is not set"; exit 1; }
-          mkdir -p registry && git show origin/main:registry/index.json > registry/index.json 2>/dev/null || rm -f registry/index.json
-          go run ./cmd/rig-index -version "$GITHUB_REF_NAME" -url "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
-      - name: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" dist/release/* --title "rig-plugins $GITHUB_REF_NAME" --generate-notes
-          git config user.name github-actions && git config user.email github-actions@users.noreply.github.com
-          cp registry/index.json "$RUNNER_TEMP/index.json"
-          git checkout -qf -B main origin/main
-          mkdir -p registry && cp "$RUNNER_TEMP/index.json" registry/index.json && git add registry/index.json
-          git commit -qm "chore: registry index for $GITHUB_REF_NAME" && git push origin HEAD:main
+          # the index as the last release left it, which this commit may predate
+          git fetch -q origin main && git checkout origin/main -- registry/index.json
+          go run ./cmd/rig-std install --relative dist/manifests
+          go run ./cmd/rig-index -version "$TAG" -url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" -only "$PLUGINS"
+          git tag "$TAG" "$GITHUB_SHA"
+          for i in 1 2 3; do git push origin "$TAG" && break; sleep $((i * 10)); done
+          for i in 1 2 3; do gh release create "$TAG" dist/release/* --title "rig-plugins $TAG" --notes "Plugins: ${PLUGINS//,/, }" && break; sleep $((i * 10)); done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add registry/index.json
+          git commit -m "chore: registry index for $TAG [skip ci]"
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep $((i * 10)); done
