@@ -1,7 +1,7 @@
 {
   "plugins": {
     "arcade": {
-      "description": "a Games tab of terminal panes (snake, sudoku, tic-tac-toe, 2048, tetris and pac-man in bash; a game that is waiting uses no CPU)",
+      "description": "a Games tab with two parts, Offline (snake, sudoku, tic-tac-toe, 2048, tetris, pac-man in a terminal pane) and Online (host a room, share ip:port, play snake.io, draw \u0026 guess, tic-tac-toe, connect four or pong in the browser)",
       "publisher": "goxang",
       "repo": "github.com/goxang/rig-plugins",
       "versions": {
@@ -32,6 +32,16 @@
               "url": "https://github.com/goxang/rig-plugins/releases/download/v1.2.0/arcade_1.2.0_any.tar.gz",
               "sha256": "262966c6f6a742cf4607680ac7a3ab593766ca438d6f53caded0bcd90d318e44",
               "sig": "untrusted comment: signature from rig secret key\nRUSO4FXV354ZdOzmqpAAxjdgDrnOFl5MBia7QpEoWKyzdJwGmiQqC9sZqfjMYgg8HFu3/UAu6gs808Oqy7X0Y0LycwHm1sbTCg0=\ntrusted comment: timestamp:1791759484\tfile:arcade_1.2.0_any.tar.gz\thashed\nJIwnx55q6o8mG94fEyzR2a8TcGvnY6Qsdu8axGdvAO7Y/Rkn0ACOvNjPDOdPnzPvKwU1rR1wxar9EHfV2h/aBw==\n"
+            }
+          }
+        },
+        "1.3.0": {
+          "permissions": {},
+          "artifacts": {
+            "any": {
+              "url": "https://github.com/goxang/rig-plugins/releases/download/v1.3.0/arcade_1.3.0_any.tar.gz",
+              "sha256": "8fa282268030a1f3306cb809d77e2ebf68fa9e80586b8eca768f098dda7c5c11",
+              "sig": "untrusted comment: signature from rig secret key\nRUSO4FXV354ZdHUmU43Vegh/5LW0Jy47gpqBTQsrlEX9wLIdiAxL5cocdmCw2fpac8UOUVlBC2ziEtTAcIomCDSLmjsHojYDMAU=\ntrusted comment: timestamp:1791893208\tfile:arcade_1.3.0_any.tar.gz\thashed\nacUsyK9voqI76d7TC510KFxWdkI+y5vpcufR0WzBic5U3NgeRE78U3Vw+ZUEiK7IWHlGFMzABKb6v2/t4iwFCg==\n"
             }
           }
         }
