@@ -3,3 +3,4 @@
 .rig/
 .idea/
 /rig-index
+__pycache__/

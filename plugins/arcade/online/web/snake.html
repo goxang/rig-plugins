@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Snake.io</title><link rel="stylesheet" href="common.css">
+<style>
+  main { align-items: stretch; flex-wrap: nowrap; }
+  .arena { flex: 1; min-width: 0; display: flex; justify-content: center; align-items: flex-start; position: relative; }
+  canvas { width: 100%; max-width: 1000px; aspect-ratio: 3 / 2; border-radius: 16px; border: 1px solid var(--line); background: #0a0e14; touch-action: none; }
+  .side { width: 250px; flex: none; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border: 0; }
+  .dot { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+  .row b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .row.me b { color: var(--accent); } .row.dead { opacity: .45; }
+  .row span { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .over {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: rgba(13, 17, 23, .88);
+    border: 1px solid var(--line); border-radius: 16px; padding: 22px 30px; display: none;
+  }
+  .over h2 { margin: 0 0 6px; } .over p { margin: 0 0 14px; color: var(--muted); }
+  @media (max-width: 860px) { main { flex-wrap: wrap; } .side { width: 100%; } }
+</style></head>
+<body>
+<header class="bar"><span class="brand">arcade</span><span class="room" id="room"></span>
+  <button class="pill" id="who" title="Change name"></button><span class="pill bad" id="conn">connecting…</span></header>
+<main>
+  <div class="arena"><canvas id="cv" width="960" height="640"></canvas>
+    <div class="over" id="over"><h2>You crashed</h2><p id="why"></p><button class="btn" id="respawn">Respawn (space)</button></div></div>
+  <div class="side card"><h3>Leaderboard</h3><div id="board"></div>
+    <p class="muted" style="margin:12px 0 0;font-size:13px">arrows / WASD / swipe · eat dots, make others hit you</p></div>
+</main>
+<script src="common.js"></script>
+<script>
+const $ = (s) => document.querySelector(s), cv = $("#cv"), g = cv.getContext("2d");
+let S = null, died = false;
+
+const keys = { ArrowUp: 0, w: 0, ArrowRight: 1, d: 1, ArrowDown: 2, s: 2, ArrowLeft: 3, a: 3 };
+addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (k in keys) { e.preventDefault(); Arcade.send({ t: "dir", d: keys[k] }); }
+  else if (k === " ") { e.preventDefault(); respawn(); }
+});
+let touch = null;
+cv.addEventListener("pointerdown", (e) => { touch = [e.clientX, e.clientY]; });
+cv.addEventListener("pointerup", (e) => {
+  if (!touch) return;
+  const dx = e.clientX - touch[0], dy = e.clientY - touch[1];
+  touch = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+  Arcade.send({ t: "dir", d: Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0) });
+});
+function respawn() { if (died) Arcade.send({ t: "respawn" }); }
+$("#respawn").onclick = respawn;
+
+function draw() {
+  requestAnimationFrame(draw);
+  if (!S) return;
+  const cs = Math.min(cv.width / S.w, cv.height / S.h);
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.strokeStyle = "#141b24"; g.lineWidth = 1; g.beginPath();
+  for (let x = 0; x <= S.w; x++) { g.moveTo(x * cs, 0); g.lineTo(x * cs, S.h * cs); }
+  for (let y = 0; y <= S.h; y++) { g.moveTo(0, y * cs); g.lineTo(S.w * cs, y * cs); }
+  g.stroke();
+  g.fillStyle = "#ffc857"; g.shadowColor = "#ffc857"; g.shadowBlur = 8;
+  for (const f of S.food) { g.beginPath(); g.arc((f % S.w + .5) * cs, (Math.floor(f / S.w) + .5) * cs, cs * .26, 0, 7); g.fill(); }
+  g.shadowBlur = 0;
+  for (const sn of S.snakes) {
+    if (!sn.a) continue;
+    const col = Arcade.snakeColors[sn.c], mine = sn.id === Arcade.me.id;
+    sn.p.forEach((v, i) => {
+      const x = (v % S.w) * cs, y = Math.floor(v / S.w) * cs, pad = i === 0 ? 1 : 2;
+      g.globalAlpha = i === 0 ? 1 : Math.max(.55, 1 - i / (sn.p.length + 4));
+      g.fillStyle = col;
+      g.beginPath(); g.roundRect(x + pad, y + pad, cs - 2 * pad, cs - 2 * pad, cs * .3); g.fill();
+    });
+    g.globalAlpha = 1;
+    const h = sn.p[0], hx = (h % S.w + .5) * cs, hy = (Math.floor(h / S.w) + .5) * cs;
+    g.fillStyle = "#0b1020";
+    g.beginPath(); g.arc(hx - cs * .15, hy - cs * .1, cs * .1, 0, 7); g.arc(hx + cs * .15, hy - cs * .1, cs * .1, 0, 7); g.fill();
+    g.font = "600 12px system-ui"; g.textAlign = "center";
+    g.fillStyle = mine ? "#fff" : "#c9d4e0";
+    g.fillText(sn.n, hx, hy - cs * .8);
+  }
+}
+draw();
+
+function board(s) {
+  const box = $("#board"); box.textContent = "";
+  [...s.snakes].sort((a, b) => b.s - a.s || b.b - a.b).forEach((sn) => {
+    const row = Arcade.el("div", "row" + (sn.id === Arcade.me.id ? " me" : "") + (sn.a ? "" : " dead"));
+    const dot = Arcade.el("div", "dot"); dot.style.background = Arcade.snakeColors[sn.c];
+    row.append(dot, Arcade.el("b", "", sn.n), Arcade.el("span", "", sn.a ? `${sn.s} · ${sn.k}☠` : `best ${sn.b}`));
+    box.appendChild(row);
+  });
+}
+
+Arcade.start({
+  welcome: () => { died = false; $("#over").style.display = "none"; },
+  msg(m) {
+    if (m.t === "state") {
+      S = m; board(m);
+      const mine = m.snakes.find((x) => x.id === Arcade.me.id);
+      if (mine && mine.a && died) { died = false; $("#over").style.display = "none"; }
+      else if (mine && !mine.a && !died) {
+        died = true; $("#why").textContent = "No free spot yet"; $("#over").style.display = "block";
+      }
+    } else if (m.t === "died") {
+      died = true;
+      $("#why").textContent = m.by === "the wall" || m.by === "yourself" || m.by === "a head-on crash"
+        ? `You hit ${m.by}` : `${m.by} got you`;
+      $("#over").style.display = "block";
+    }
+  },
+});
+</script></body></html>

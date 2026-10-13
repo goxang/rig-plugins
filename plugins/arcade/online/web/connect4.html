@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect Four</title><link rel="stylesheet" href="common.css">
+<style>
+  .col { display: flex; flex-direction: column; gap: 14px; width: min(94vw, 520px); }
+  .board { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; background: #2b4aa8; padding: 10px; border-radius: 18px; box-shadow: inset 0 -6px 0 #20367d; }
+  .slot { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 12px; }
+  .slot:disabled { cursor: default; }
+  .slot:not(:disabled):hover { background: rgba(255, 255, 255, .12); }
+  .hole { aspect-ratio: 1; border-radius: 50%; background: #0d1117; box-shadow: inset 0 3px 6px rgba(0, 0, 0, .6); transition: background .25s; }
+  .hole.win { animation: pulse .9s infinite; outline: 3px solid #fff; }
+  @keyframes pulse { 50% { transform: scale(.88); } }
+</style></head>
+<body>
+<header class="bar"><span class="brand">arcade</span><span class="room" id="room"></span>
+  <button class="pill" id="who" title="Change name"></button><span class="pill bad" id="conn">connecting…</span></header>
+<main><div class="col">
+  <div id="seats"></div>
+  <div class="status" id="status"></div>
+  <div class="board" id="board"></div>
+  <button class="btn" id="again" hidden>Play again</button>
+  <div class="muted" style="text-align:center">click a column or press 1-7</div>
+</div></main>
+<script src="common.js"></script>
+<script>
+const $ = (s) => document.querySelector(s), COLS = 7, ROWS = 6;
+const slots = [], holes = [];
+for (let c = 0; c < COLS; c++) {
+  const b = Arcade.el("button", "slot");
+  b.onclick = () => Arcade.send({ t: "drop", c });
+  slots.push(b);
+  for (let r = 0; r < ROWS; r++) { const h = Arcade.el("div", "hole"); holes.push(h); b.appendChild(h); }
+  $("#board").appendChild(b);
+}
+$("#again").onclick = () => Arcade.send({ t: "rematch" });
+addEventListener("keydown", (e) => {
+  const c = Number(e.key) - 1;
+  if (c >= 0 && c < COLS && !slots[c].disabled) Arcade.send({ t: "drop", c });
+  if (e.key === "Enter" && !$("#again").hidden) Arcade.send({ t: "rematch" });
+});
+
+function render(s) {
+  Arcade.renderSeats($("#seats"), s, ["●", "●"]);
+  const me = Arcade.mySeat(s), full = !s.seats.includes(null);
+  let text;
+  if (!full) text = "Waiting for an opponent…";
+  else if (s.winner === "draw") text = "Board full - it's a draw";
+  else if (s.winner != null) text = me === s.winner ? "Four in a row! You win 🎉" : me >= 0 ? "You lose" : `${s.seats[s.winner]} wins`;
+  else text = me < 0 ? `${s.seats[s.turn]}'s turn` : s.turn === me ? "Your turn" : "Opponent's turn";
+  $("#status").textContent = text;
+  const win = new Set((s.line || []).map(([r, c]) => c * ROWS + r));
+  for (let c = 0; c < COLS; c++) {
+    slots[c].disabled = !full || s.winner != null || s.turn !== me || s.grid[0][c] != null;
+    for (let r = 0; r < ROWS; r++) {
+      const h = holes[c * ROWS + r], v = s.grid[r][c];
+      h.style.background = v == null ? "" : Arcade.seatColors[v];
+      h.classList.toggle("win", win.has(c * ROWS + r));
+    }
+  }
+  $("#again").hidden = !(s.winner != null && me >= 0);
+}
+Arcade.start({ msg: (m) => { if (m.t === "state") render(m); } });
+</script></body></html>

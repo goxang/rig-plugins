@@ -1,15 +1,10 @@
 name: arcade
 version: 1.4.0
-description: a Games tab of terminal panes (snake, sudoku, tic-tac-toe, 2048, tetris and pac-man in bash; a game that is waiting uses no CPU)
+description: a Games tab with two parts, Offline (snake, sudoku, tic-tac-toe, 2048, tetris, pac-man in a terminal pane) and Online (host a room, share ip:port, play snake.io, draw & guess, tic-tac-toe, connect four or pong in the browser)
 publisher: goxang
 views:
   Games:
     slot: {tab: {key: G}}
     tabs:
-      Snake: {widget: terminal, dir: ., command: "bash snake.sh"}
-      "Tic Tac Toe": {widget: terminal, dir: ., command: "bash tictactoe.sh"}
-      "2048": {widget: terminal, dir: ., command: "bash 2048.sh"}
-      Tetris: {widget: terminal, dir: ., command: "bash tetris.sh"}
-      Sudoku: {widget: terminal, dir: ., command: "bash sudoku.sh"}
-      "Pac-Man": {widget: terminal, dir: ., command: "bash pacman.sh"}
-      Shell: {widget: terminal, keep: true}
+      Offline: {widget: terminal, dir: ., command: "python3 hub.py offline"}
+      Online: {widget: terminal, dir: ., command: "python3 hub.py online"}

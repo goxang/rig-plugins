@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Draw &amp; Guess</title><link rel="stylesheet" href="common.css">
+<style>
+  main { align-items: stretch; }
+  .players { width: 200px; } .center { width: min(96vw, 640px); display: flex; flex-direction: column; gap: 10px; } .chat { width: 270px; display: flex; flex-direction: column; }
+  .top { display: flex; align-items: center; gap: 12px; }
+  .hint { flex: 1; text-align: center; font: 700 28px/1.2 ui-monospace, monospace; letter-spacing: 6px; min-height: 34px; }
+  .timer { font: 700 20px ui-monospace, monospace; min-width: 52px; text-align: right; color: var(--warn); }
+  canvas { width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; background: #fff; touch-action: none; border: 1px solid var(--line); }
+  canvas.draw { cursor: crosshair; }
+  .tools { display: none; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .sw { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+  .sw.on { border-color: var(--accent); transform: scale(1.12); }
+  .picks { display: none; gap: 10px; justify-content: center; }
+  .p { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .p:last-child { border: 0; } .p b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .p.me b { color: var(--accent); } .p span { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .p .ic { width: 18px; text-align: center; }
+  #log { flex: 1; min-height: 260px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; word-break: break-word; }
+  #log .sys { color: var(--muted); } #log .ok { color: var(--p1); font-weight: 650; } #log .win { color: var(--warn); font-weight: 700; }
+  #log .private { color: #9b5de5; } #log b { color: var(--accent); }
+  .chat input { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font: inherit; width: 100%; }
+  @media (max-width: 1000px) { .players, .chat { width: min(96vw, 720px); } #log { min-height: 120px; } }
+</style></head>
+<body>
+<header class="bar"><span class="brand">arcade</span><span class="room" id="room"></span>
+  <button class="pill" id="who" title="Change name"></button><span class="pill bad" id="conn">connecting…</span></header>
+<main>
+  <div class="players card"><h3>Players</h3><div id="plist"></div></div>
+  <div class="center">
+    <div class="top"><div class="hint" id="hint"></div><div class="timer" id="timer"></div></div>
+    <div class="status" id="status" style="font-size:16px"></div>
+    <div class="picks" id="picks"></div>
+    <canvas id="cv" width="800" height="600"></canvas>
+    <div class="tools" id="tools"></div>
+  </div>
+  <div class="chat card"><h3>Guess here</h3><div id="log"></div><input id="say" maxlength="80" placeholder="Type your guess…" autocomplete="off"></div>
+</main>
+<script src="common.js"></script>
+<script>
+const $ = (s) => document.querySelector(s), cv = $("#cv"), g = cv.getContext("2d");
+let S = null, drawing = false, color = 0, size = 6, last = null, buf = [], flushAt = 0;
+const SIZES = [3, 7, 14, 26];
+
+function clearCanvas() { g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height); }
+function stroke(s) {
+  const pts = s.p.map(([x, y]) => [x * cv.width, y * cv.height]);
+  g.strokeStyle = g.fillStyle = Arcade.palette[s.c]; g.lineWidth = s.w; g.lineCap = g.lineJoin = "round";
+  if (pts.length === 1) { g.beginPath(); g.arc(pts[0][0], pts[0][1], s.w / 2, 0, 7); g.fill(); return; }
+  g.beginPath(); g.moveTo(...pts[0]); pts.slice(1).forEach((p) => g.lineTo(...p)); g.stroke();
+}
+clearCanvas();
+
+const tools = $("#tools");
+Arcade.palette.forEach((c, i) => {
+  const b = Arcade.el("button", "sw" + (i === 0 ? " on" : "")); b.style.background = c; b.title = i === 1 ? "eraser" : "";
+  b.onclick = () => { color = i; tools.querySelectorAll(".sw").forEach((x) => x.classList.toggle("on", x === b)); };
+  tools.appendChild(b);
+});
+SIZES.forEach((w, i) => {
+  const b = Arcade.el("button", "btn ghost", ["S", "M", "L", "XL"][i]); b.style.padding = "4px 10px";
+  b.onclick = () => { size = w; };
+  tools.appendChild(b);
+});
+const clr = Arcade.el("button", "btn ghost", "Clear"); clr.style.padding = "4px 12px";
+clr.onclick = () => Arcade.send({ t: "clear" });
+tools.appendChild(clr);
+
+function pos(e) {
+  const r = cv.getBoundingClientRect();
+  return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
+}
+function flush() {
+  if (!buf.length) return;
+  Arcade.send({ t: "stroke", c: color, w: size, p: buf });
+  buf = [buf[buf.length - 1]];
+}
+cv.addEventListener("pointerdown", (e) => {
+  if (!canDraw()) return;
+  cv.setPointerCapture(e.pointerId);
+  drawing = true; buf = [pos(e)];
+  local([buf[0]]);
+  last = buf[0]; flushAt = performance.now();
+});
+cv.addEventListener("pointermove", (e) => {
+  if (!drawing) return;
+  const p = pos(e);
+  buf.push(p); local([last, p]); last = p;
+  if (buf.length >= 40 || performance.now() - flushAt > 60) { flush(); flushAt = performance.now(); }
+});
+const stop = () => { if (drawing) { drawing = false; if (buf.length === 1 && !last) buf = []; flush(); buf = []; } };
+cv.addEventListener("pointerup", stop);
+cv.addEventListener("pointercancel", stop);
+function local(p) { stroke({ c: color, w: size, p }); }
+function canDraw() { return S && S.phase === "draw" && S.drawer === Arcade.me.id; }
+
+const say = $("#say");
+say.onkeydown = (e) => {
+  if (e.key === "Enter" && say.value.trim()) { Arcade.send({ t: "chat", text: say.value }); say.value = ""; }
+};
+function chat(m) {
+  const log = $("#log"), line = Arcade.el("div", m.k === "msg" ? (m.private ? "private" : "") : m.k);
+  if (m.k === "msg") line.append(Arcade.el("b", "", m.who + ": "), m.text + (m.private ? "  🔒" : ""));
+  else line.textContent = m.text;
+  log.appendChild(line);
+  while (log.children.length > 200) log.firstChild.remove();
+  log.scrollTop = log.scrollHeight;
+}
+
+function render(s) {
+  S = s;
+  const me = Arcade.me.id, mine = s.drawer === me;
+  const plist = $("#plist"); plist.textContent = "";
+  [...s.players].sort((a, b) => b.s - a.s).forEach((p) => {
+    const row = Arcade.el("div", "p" + (p.id === me ? " me" : ""));
+    row.append(Arcade.el("div", "ic", p.id === s.drawer ? "✏️" : p.g ? "✅" : ""), Arcade.el("b", "", p.n), Arcade.el("span", "", String(p.s)));
+    plist.appendChild(row);
+  });
+  const name = (s.players.find((p) => p.id === s.drawer) || {}).n || "";
+  $("#timer").textContent = ["pick", "draw", "reveal", "over"].includes(s.phase) ? s.left + "s" : "";
+  $("#hint").textContent = s.phase === "draw" && mine ? (word || "") : (s.hint || "").split("").join(" ");
+  $("#status").textContent = {
+    lobby: "Waiting for at least 2 players…",
+    pick: mine ? "Choose a word to draw" : `${name} is choosing a word…`,
+    draw: mine ? "Draw it! Others are guessing" : `${name} is drawing - type your guess`,
+    reveal: "Time!",
+    over: "Game over - new game starting soon",
+  }[s.phase] || "";
+  $("#picks").style.display = s.phase === "pick" && mine ? "flex" : "none";
+  tools.style.display = s.phase === "draw" && mine ? "flex" : "none";
+  cv.classList.toggle("draw", canDraw());
+  say.disabled = s.phase === "draw" && mine;
+}
+let word = "";
+Arcade.start({
+  welcome: () => { word = ""; clearCanvas(); $("#log").textContent = ""; },
+  msg(m) {
+    if (m.t === "state") render(m);
+    else if (m.t === "stroke") stroke(m);
+    else if (m.t === "strokes") { clearCanvas(); m.list.forEach(stroke); }
+    else if (m.t === "clear") clearCanvas();
+    else if (m.t === "chat") chat(m);
+    else if (m.t === "word") { word = m.word; if (S) render(S); }
+    else if (m.t === "pick") {
+      word = "";
+      const box = $("#picks"); box.textContent = "";
+      m.options.forEach((w) => { const b = Arcade.el("button", "btn", w); b.onclick = () => Arcade.send({ t: "pick", word: w }); box.appendChild(b); });
+    }
+  },
+});
+</script></body></html>

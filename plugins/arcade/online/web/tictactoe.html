@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tic-Tac-Toe</title><link rel="stylesheet" href="common.css">
+<style>
+  .col { display: flex; flex-direction: column; gap: 14px; width: min(92vw, 380px); }
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .cell {
+    aspect-ratio: 1; border: 0; border-radius: 16px; background: var(--panel2); font-size: clamp(42px, 14vw, 78px);
+    font-weight: 800; cursor: pointer; transition: background .15s, transform .1s; color: var(--text);
+  }
+  .cell:not(:disabled):hover { background: #243040; transform: translateY(-2px); }
+  .cell:disabled { cursor: default; }
+  .cell.win { background: rgba(124, 156, 255, .25); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { transform: scale(1.05); } }
+</style></head>
+<body>
+<header class="bar"><span class="brand">arcade</span><span class="room" id="room"></span>
+  <button class="pill" id="who" title="Change name"></button><span class="pill bad" id="conn">connecting…</span></header>
+<main><div class="col">
+  <div id="seats"></div>
+  <div class="status" id="status"></div>
+  <div class="board" id="board"></div>
+  <button class="btn" id="again" hidden>Play again</button>
+</div></main>
+<script src="common.js"></script>
+<script>
+const MARKS = ["X", "O"], $ = (s) => document.querySelector(s);
+const board = $("#board"), cells = [];
+for (let i = 0; i < 9; i++) {
+  const b = Arcade.el("button", "cell");
+  b.onclick = () => Arcade.send({ t: "move", i });
+  cells.push(b); board.appendChild(b);
+}
+$("#again").onclick = () => Arcade.send({ t: "rematch" });
+
+function render(s) {
+  Arcade.renderSeats($("#seats"), s, MARKS);
+  const me = Arcade.mySeat(s), full = !s.seats.includes(null);
+  let text = "";
+  if (!full) text = "Waiting for an opponent…";
+  else if (s.winner === "draw") text = "It's a draw";
+  else if (s.winner != null) text = me === s.winner ? "You win! 🎉" : me >= 0 ? "You lose" : `${s.seats[s.winner]} wins`;
+  else text = me < 0 ? `${s.seats[s.turn]}'s turn` : s.turn === me ? "Your turn" : "Opponent's turn";
+  $("#status").textContent = text;
+  cells.forEach((c, i) => {
+    const v = s.board[i];
+    c.textContent = v == null ? "" : MARKS[v];
+    c.style.color = v == null ? "" : Arcade.seatColors[v];
+    c.disabled = !full || s.winner != null || v != null || s.turn !== me;
+    c.classList.toggle("win", !!s.line && s.line.includes(i));
+  });
+  $("#again").hidden = !(s.winner != null && me >= 0);
+}
+Arcade.start({ msg: (m) => { if (m.t === "state") render(m); } });
+</script></body></html>
