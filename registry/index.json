@@ -1,7 +1,7 @@
 {
   "plugins": {
     "arcade": {
-      "description": "a Games tab with two parts, Offline (snake, sudoku, tic-tac-toe, 2048, tetris, pac-man in a terminal pane) and Online (host a room, share ip:port, play snake.io, draw \u0026 guess, tic-tac-toe, connect four, pong or the fox \u0026 floe river race with five foxes, crate weapons and host controls in the browser)",
+      "description": "a Games tab with two parts, Offline (snake, sudoku, tic-tac-toe, 2048, tetris, pac-man in a terminal pane) and Online (host a room, share ip:port, play snake.io, draw \u0026 guess, tic-tac-toe, connect four, pong, the fox \u0026 floe river race, or team pac-man in the browser)",
       "publisher": "goxang",
       "repo": "github.com/goxang/rig-plugins",
       "versions": {
@@ -62,6 +62,16 @@
               "url": "https://github.com/goxang/rig-plugins/releases/download/v1.5.0/arcade_1.5.0_any.tar.gz",
               "sha256": "9088a3e404399220e5a7843e8360c7451e88572802ce39a5fddd9edb59a08684",
               "sig": "untrusted comment: signature from rig secret key\nRUSO4FXV354ZdKroUj8nwJcqITvL71cm100GFnB5feFDmCBHdmhsaDqrRqfzqxzsbCawOr9EBLagYT5V5RuTJ6nWPdh3rebVcAw=\ntrusted comment: timestamp:1791977125\tfile:arcade_1.5.0_any.tar.gz\thashed\nOAxJ+e8zNiau2Z+phHmDoehQ6lSYeyZLF4Pa6UpQ+IlkrcYDVXRMK0YHZUuDRJspqMhYYU8tLJSjaHRCqWDOCw==\n"
+            }
+          }
+        },
+        "1.6.0": {
+          "permissions": {},
+          "artifacts": {
+            "any": {
+              "url": "https://github.com/goxang/rig-plugins/releases/download/v1.6.0/arcade_1.6.0_any.tar.gz",
+              "sha256": "aed209115b155c4d30d8f194b1eba1be339dbec88ff0119d6e110f7d65be4975",
+              "sig": "untrusted comment: signature from rig secret key\nRUSO4FXV354ZdLK75GkBBuUKFS6Jqrt0usC2skpzGSB8kigNp2isdKHXMZS65n0E35JxYx+QWWlrAdrDivplUXe8GRJWglvVcAU=\ntrusted comment: timestamp:1791986813\tfile:arcade_1.6.0_any.tar.gz\thashed\nDhcIRhnMJgu+uVhzETR9UrgnQWfrtAduazoOvvgYeNbWGJPzDsKal/UMUGk4keHYlKsTHIrCNj+RwqjHx8yfDg==\n"
             }
           }
         }
