@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pac-Man Teams</title><link rel="stylesheet" href="common.css">
+<style>
+  :root {
+    --pac: #ffd32a; --pac-glow: rgba(255, 211, 42, 0.45);
+    --ghost: #ff4757; --ghost-glow: rgba(255, 71, 87, 0.45);
+    --scared: #1e90ff; --scared-glow: rgba(30, 144, 255, 0.55);
+  }
+  body { overflow-x: hidden; }
+  .scorebar {
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+    background: rgba(13, 17, 23, 0.85); padding: 8px 16px; border-bottom: 1px solid var(--line);
+    font-size: 14px; flex-wrap: wrap;
+  }
+  .team-pill {
+    display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 999px;
+    background: var(--panel2); border: 2px solid transparent; cursor: pointer;
+    font-weight: 700; transition: all .15s ease; user-select: none;
+  }
+  .team-pill:hover { transform: translateY(-1px); filter: brightness(1.15); }
+  .team-pill:active { transform: translateY(0); }
+  .team-pill.pac { color: var(--pac); border-color: rgba(255, 211, 42, 0.3); }
+  .team-pill.pac.active { background: rgba(255, 211, 42, 0.18); border-color: var(--pac); box-shadow: 0 0 14px var(--pac-glow); }
+  .team-pill.ghost { color: var(--ghost); border-color: rgba(255, 71, 87, 0.3); }
+  .team-pill.ghost.active { background: rgba(255, 71, 87, 0.18); border-color: var(--ghost); box-shadow: 0 0 14px var(--ghost-glow); }
+  .score-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .vs-badge { font-weight: 800; color: var(--muted); font-size: 12px; letter-spacing: 1px; }
+  .alert-banner {
+    display: none; align-items: center; gap: 8px; padding: 4px 16px; border-radius: 999px;
+    font-weight: 800; font-size: 13px; animation: pulse 0.7s infinite alternate;
+  }
+  .alert-banner.fright { display: flex; background: rgba(30, 144, 255, 0.25); border: 1px solid var(--scared); color: #70a1ff; box-shadow: 0 0 16px var(--scared-glow); }
+  @keyframes pulse { from { opacity: 0.85; transform: scale(0.98); } to { opacity: 1; transform: scale(1.02); } }
+
+  main {
+    align-items: center; justify-content: center; max-width: 1750px; margin: 0 auto;
+    width: 100%; padding: 8px 16px; height: calc(100vh - 105px); flex-wrap: nowrap; gap: 14px;
+  }
+  .arena {
+    flex: 1; min-width: 0; height: 100%; display: flex; justify-content: center;
+    align-items: center; position: relative;
+  }
+  canvas {
+    width: 100%; max-width: 1360px; max-height: calc(100vh - 120px); aspect-ratio: 41 / 29;
+    object-fit: contain; border-radius: 16px; border: 1px solid #1c2b42;
+    background: #060911; touch-action: none; box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 24px rgba(0, 180, 216, 0.08);
+  }
+  .side { width: 280px; flex: none; max-height: calc(100vh - 120px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .side .card { padding: 12px 14px; }
+  .roster-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+  .roster-title.pac { color: var(--pac); } .roster-title.ghost { color: var(--ghost); }
+  .player-row {
+    display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px;
+  }
+  .player-row:last-child { border: 0; }
+  .player-row .avatar { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .player-row b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player-row.me b { color: var(--accent); }
+  .player-row.dead { opacity: 0.45; }
+  .player-row .stat { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .feed-item { font-size: 12px; color: var(--muted); padding: 3px 0; line-height: 1.35; }
+  .feed-item b { color: var(--text); }
+  .overlay-msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(9, 13, 20, 0.92); border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px 34px; text-align: center; display: none; z-index: 10;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+  }
+  .overlay-msg h2 { margin: 0 0 6px; font-size: 20px; }
+  .overlay-msg p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  @media (max-width: 900px) {
+    main { flex-wrap: wrap; height: auto; }
+    .side { width: 100%; max-height: none; }
+  }
+</style></head>
+<body>
+<header class="bar"><span class="brand">arcade</span><span class="room" id="room"></span>
+  <button class="pill" id="who" title="Change name"></button><span class="pill bad" id="conn">connecting…</span></header>
+
+<div class="scorebar">
+  <button class="team-pill pac" id="btn-pac" title="Click to play as Pac-Man">
+    <span>🟡</span><span>TEAM PAC-MAN</span><span class="score-val" id="pac-score">0</span>
+  </button>
+  <span class="vs-badge">VS</span>
+  <button class="team-pill ghost" id="btn-ghost" title="Click to play as Ghost">
+    <span>👻</span><span>TEAM GHOSTS</span><span class="score-val" id="ghost-score">0</span>
+  </button>
+  <div class="alert-banner" id="fright-banner">
+    <span>⚡</span><span>ENERGIZED!</span><span id="fright-sec">9.0s</span>
+  </div>
+</div>
+
+<main>
+  <div class="arena">
+    <canvas id="cv" width="1230" height="870"></canvas>
+    <div class="overlay-msg" id="caught-box">
+      <h2 id="caught-title">Caught by Ghosts!</h2>
+      <p id="caught-text">Respawning in <b id="respawn-timer">3.0</b>s</p>
+      <button class="btn ghost" id="btn-sw-team" style="font-size:12px;padding:6px 14px">Switch Team (T)</button>
+    </div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <div class="roster-title pac"><span>🟡 PAC-MAN TEAM</span><span id="pac-count">0</span></div>
+      <div id="pac-roster"></div>
+    </div>
+    <div class="card">
+      <div class="roster-title ghost"><span>👻 GHOST TEAM</span><span id="ghost-count">0</span></div>
+      <div id="ghost-roster"></div>
+    </div>
+    <div class="card">
+      <div class="roster-title" style="color:var(--muted)"><span>EVENT LOG</span></div>
+      <div id="feed-box"></div>
+    </div>
+    <div class="card muted" style="font-size:12px;line-height:1.45">
+      <b>Steer:</b> Arrows / WASD / Swipe<br>
+      <b>Teams:</b> Click top buttons or press <b>T</b> to switch
+    </div>
+  </div>
+</main>
+
+<script src="common.js"></script>
+<script>
+const MAZE = [
+  "#########################################",
+  "#o........#........ . ........#........o#",
+  "#.###.###.#.######.###.######.#.###.###.#",
+  "#.###.###.#.######.###.######.#.###.###.#",
+  "#.................. . ..................#",
+  "#.###.#.######.###.###.###.######.#.###.#",
+  "#.....#...##...#...###...#...##...#.....#",
+  "#####.###.##.###.#######.###.##.###.#####",
+  "    #.#..........#  .  #..........#.#    ",
+  "#####.#.###--###.###-###.###--###.#.#####",
+  "     .#.#      #...   ...#      #.#.     ",
+  "#####.#.# #### #.#######.# #### #.#.#####",
+  "    #.#.# #  # #...   ...# #  # #.#.#    ",
+  "#####.#.# #### #.#######.# #### #.#.#####",
+  "     .#.#      #...   ...#      #.#.     ",
+  "#####.#.########.#######.########.#.#####",
+  "    #.#..........#     #..........#.#    ",
+  "#####.#.######.###########.######.#.#####",
+  "#.........##....... . .......##.........#",
+  "#.###.###.##.#####.###.#####.##.###.###.#",
+  "#o..#............#  .  #............#..o#",
+  "###.#.#.######.###########.######.#.#.###",
+  "#.....#...##....... . .......##...#.....#",
+  "#.#######.##.#####.###.#####.##.#######.#",
+  "#.................. . ..................#",
+  "#.###.########.###.###.###.########.###.#",
+  "#...#..........#... . ...#..........#...#",
+  "#o..#..........#... . ...#..........#..o#",
+  "#########################################"
+];
+
+const MW = 41, MH = 29, CS = 30;
+const $ = (s) => document.querySelector(s);
+const cv = $("#cv"), g = cv.getContext("2d");
+
+const PAC_COLORS = ["#ffd32a", "#ff9f1a", "#ffeaa7", "#7bed9f", "#f6e58d"];
+const GHOST_COLORS = ["#ff3838", "#ff85a2", "#00d2d3", "#ff9f43", "#a29bfe", "#10ac84", "#54a0ff", "#e056fd"];
+const DIRS = [{x:0, y:-1}, {x:1, y:0}, {x:0, y:1}, {x:-1, y:0}];
+
+let S = null;
+let clientPlayers = new Map();
+let particles = [];
+let popups = [];
+let lastTime = performance.now();
+
+const keyMap = {
+  ArrowUp: 0, w: 0, W: 0,
+  ArrowRight: 1, d: 1, D: 1,
+  ArrowDown: 2, s: 2, S: 2,
+  ArrowLeft: 3, a: 3, A: 3,
+};
+
+addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key in keyMap) {
+    e.preventDefault();
+    Arcade.send({ t: "dir", d: keyMap[e.key] });
+  } else if (e.key === "t" || e.key === "T") {
+    e.preventDefault();
+    toggleTeam();
+  }
+});
+
+let touch = null;
+cv.addEventListener("pointerdown", (e) => { touch = [e.clientX, e.clientY]; });
+cv.addEventListener("pointerup", (e) => {
+  if (!touch) return;
+  const dx = e.clientX - touch[0], dy = e.clientY - touch[1];
+  touch = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+  Arcade.send({ t: "dir", d: Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0) });
+});
+
+function toggleTeam() {
+  if (!S || !Arcade.me) return;
+  const me = S.players.find(p => p.id === Arcade.me.id);
+  const nextTeam = (!me || me.team === "pacman") ? "ghost" : "pacman";
+  Arcade.send({ t: "team", team: nextTeam });
+}
+
+$("#btn-pac").onclick = () => Arcade.send({ t: "team", team: "pacman" });
+$("#btn-ghost").onclick = () => Arcade.send({ t: "team", team: "ghost" });
+$("#btn-sw-team").onclick = toggleTeam;
+
+function spawnParticles(x, y, color, count = 16) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 40 + Math.random() * 120;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd,
+      color,
+      size: 2 + Math.random() * 3.5,
+      life: 0.5 + Math.random() * 0.4,
+      maxLife: 0.8,
+    });
+  }
+}
+
+function spawnPopup(x, y, text, color) {
+  popups.push({ x, y, text, color, life: 1.0, maxLife: 1.0 });
+}
+
+function render() {
+  requestAnimationFrame(render);
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+
+  g.fillStyle = "#060911";
+  g.fillRect(0, 0, cv.width, cv.height);
+
+  drawMaze(now);
+
+  if (!S) return;
+
+  drawDots(now);
+
+  if (S.fruit) {
+    drawFruit(S.fruit, now);
+  }
+
+  drawPlayers(dt, now);
+  drawParticles(dt);
+  drawPopups(dt);
+}
+
+function drawMaze(now) {
+  g.lineCap = "round";
+  g.lineJoin = "round";
+
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      const c = MAZE[y][x];
+      const px = x * CS, py = y * CS;
+
+      if (c === "#") {
+        g.fillStyle = "#0a1322";
+        g.fillRect(px, py, CS, CS);
+        g.strokeStyle = "#19528d";
+        g.lineWidth = 1.8;
+        g.strokeRect(px + 1, py + 1, CS - 2, CS - 2);
+      } else if (c === "-") {
+        const alpha = 0.6 + 0.4 * Math.sin(now * 0.008);
+        g.fillStyle = `rgba(255, 0, 128, ${alpha})`;
+        g.fillRect(px, py + CS * 0.35, CS, CS * 0.3);
+        g.shadowColor = "#ff007f";
+        g.shadowBlur = 8;
+        g.fillStyle = "#fff";
+        g.fillRect(px + 4, py + CS * 0.45, CS - 8, 2);
+        g.shadowBlur = 0;
+      }
+    }
+  }
+}
+
+function drawDots(now) {
+  const dots = S.dots || [];
+  const power = S.power || [];
+
+  g.fillStyle = "#ffd166";
+  for (const idx of dots) {
+    const x = (idx % MW + 0.5) * CS;
+    const y = (Math.floor(idx / MW) + 0.5) * CS;
+    g.beginPath();
+    g.arc(x, y, 3.2, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  const pulse = 1 + 0.22 * Math.sin(now * 0.009);
+  g.fillStyle = "#ffffff";
+  g.shadowColor = "#ffd32a";
+  g.shadowBlur = 12 * pulse;
+  for (const idx of power) {
+    const x = (idx % MW + 0.5) * CS;
+    const y = (Math.floor(idx / MW) + 0.5) * CS;
+    g.beginPath();
+    g.arc(x, y, 7.5 * pulse, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.shadowBlur = 0;
+}
+
+function drawFruit(f, now) {
+  const x = (f.x + 0.5) * CS;
+  const y = (f.y + 0.5 + 0.15 * Math.sin(now * 0.005)) * CS;
+  g.font = "20px system-ui";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const icon = f.k === "cherry" ? "🍒" : f.k === "strawberry" ? "🍓" : f.k === "orange" ? "🍊" : "🗝️";
+  g.fillText(icon, x, y);
+}
+
+function drawPlayers(dt, now) {
+  const fright = S.fright;
+  const frightLeft = S.fright_left || 0;
+  const flash = frightLeft < 2.8 && Math.floor(now / 180) % 2 === 0;
+
+  for (const p of S.players) {
+    let cp = clientPlayers.get(p.id);
+    if (!cp) {
+      cp = { x: p.x, y: p.y, dir: p.d };
+      clientPlayers.set(p.id, cp);
+    }
+
+    if (Math.abs(p.x - cp.x) > 3) cp.x = p.x;
+    if (Math.abs(p.y - cp.y) > 3) cp.y = p.y;
+
+    const lerpSpeed = 16 * dt;
+    cp.x += (p.x - cp.x) * lerpSpeed;
+    cp.y += (p.y - cp.y) * lerpSpeed;
+    cp.dir = p.d;
+
+    if (!p.a) continue;
+
+    const px = (cp.x + 0.5) * CS;
+    const py = (cp.y + 0.5) * CS;
+    const isMe = Arcade.me && p.id === Arcade.me.id;
+
+    if (p.team === "pacman") {
+      drawPacman(px, py, p, cp.dir, isMe, now);
+    } else {
+      drawGhost(px, py, p, cp.dir, isMe, fright, flash, now);
+    }
+
+    g.font = "600 11px system-ui";
+    g.textAlign = "center";
+    g.textBaseline = "bottom";
+    g.fillStyle = isMe ? "#fff" : (p.team === "pacman" ? "#ffeaa7" : "#ff7675");
+    g.fillText(`${p.n} (${p.s})`, px, py - CS * 0.55);
+  }
+}
+
+function drawPacman(px, py, p, d, isMe, now) {
+  const r = CS * 0.44;
+  const mouth = (0.05 + 0.28 * Math.abs(Math.sin(now * 0.015))) * Math.PI;
+  const rot = d === 0 ? -Math.PI / 2 : d === 1 ? 0 : d === 2 ? Math.PI / 2 : Math.PI;
+  const col = PAC_COLORS[p.c % PAC_COLORS.length];
+
+  g.save();
+  g.translate(px, py);
+
+  if (p.sh) {
+    const shieldPulse = 1 + 0.12 * Math.sin(now * 0.01);
+    g.strokeStyle = "#00d2d3";
+    g.shadowColor = "#00d2d3";
+    g.shadowBlur = 10;
+    g.lineWidth = 2.2;
+    g.beginPath();
+    g.arc(0, 0, (r + 4) * shieldPulse, 0, Math.PI * 2);
+    g.stroke();
+    g.shadowBlur = 0;
+  }
+
+  g.rotate(rot);
+  g.fillStyle = col;
+  g.shadowColor = col;
+  g.shadowBlur = isMe ? 12 : 4;
+
+  g.beginPath();
+  g.arc(0, 0, r, mouth, Math.PI * 2 - mouth);
+  g.lineTo(0, 0);
+  g.closePath();
+  g.fill();
+  g.shadowBlur = 0;
+
+  g.fillStyle = "#111";
+  g.beginPath();
+  g.arc(r * 0.2, -r * 0.5, r * 0.14, 0, Math.PI * 2);
+  g.fill();
+
+  g.restore();
+}
+
+function drawGhost(px, py, p, d, isMe, fright, flash, now) {
+  const r = CS * 0.44;
+  const col = fright ? (flash ? "#ffffff" : "#1e90ff") : GHOST_COLORS[p.c % GHOST_COLORS.length];
+
+  g.save();
+  g.translate(px, py);
+
+  g.fillStyle = col;
+  g.shadowColor = col;
+  g.shadowBlur = isMe ? 12 : 4;
+
+  g.beginPath();
+  g.arc(0, -r * 0.2, r, Math.PI, 0, false);
+  g.lineTo(r, r * 0.7);
+
+  const wave = Math.sin(now * 0.012) * 2;
+  g.lineTo(r * 0.66, r * 0.5 + wave);
+  g.lineTo(r * 0.33, r * 0.8 - wave);
+  g.lineTo(0, r * 0.5 + wave);
+  g.lineTo(-r * 0.33, r * 0.8 - wave);
+  g.lineTo(-r * 0.66, r * 0.5 + wave);
+  g.lineTo(-r, r * 0.7);
+  g.closePath();
+  g.fill();
+  g.shadowBlur = 0;
+
+  if (fright && !flash) {
+    g.fillStyle = "#ffdd59";
+    g.fillRect(-r * 0.4, -r * 0.2, 3, 3);
+    g.fillRect(r * 0.2, -r * 0.2, 3, 3);
+    g.strokeStyle = "#ffdd59";
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(-r * 0.5, r * 0.25);
+    g.lineTo(-r * 0.25, r * 0.15);
+    g.lineTo(0, r * 0.25);
+    g.lineTo(r * 0.25, r * 0.15);
+    g.lineTo(r * 0.5, r * 0.25);
+    g.stroke();
+  } else {
+    const dx = DIRS[d].x * 3.5, dy = DIRS[d].y * 3.5;
+    g.fillStyle = "#ffffff";
+    g.beginPath();
+    g.arc(-r * 0.38, -r * 0.2, r * 0.28, 0, Math.PI * 2);
+    g.arc(r * 0.38, -r * 0.2, r * 0.28, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = "#1e272e";
+    g.beginPath();
+    g.arc(-r * 0.38 + dx, -r * 0.2 + dy, r * 0.15, 0, Math.PI * 2);
+    g.arc(r * 0.38 + dx, -r * 0.2 + dy, r * 0.15, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  g.restore();
+}
+
+function drawParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const pt = particles[i];
+    pt.life -= dt;
+    if (pt.life <= 0) { particles.splice(i, 1); continue; }
+    pt.x += pt.vx * dt;
+    pt.y += pt.vy * dt;
+    pt.vy += 80 * dt;
+    g.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+    g.fillStyle = pt.color;
+    g.beginPath();
+    g.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+function drawPopups(dt) {
+  g.font = "bold 14px system-ui";
+  g.textAlign = "center";
+  for (let i = popups.length - 1; i >= 0; i--) {
+    const po = popups[i];
+    po.life -= dt;
+    if (po.life <= 0) { popups.splice(i, 1); continue; }
+    po.y -= 25 * dt;
+    g.globalAlpha = Math.max(0, po.life / po.maxLife);
+    g.fillStyle = po.color;
+    g.fillText(po.text, po.x, po.y);
+  }
+  g.globalAlpha = 1;
+}
+
+function updateHUD(s) {
+  $("#pac-score").textContent = s.scores.pacman || 0;
+  $("#ghost-score").textContent = s.scores.ghost || 0;
+
+  const fBanner = $("#fright-banner");
+  if (s.fright) {
+    fBanner.classList.add("fright");
+    $("#fright-sec").textContent = s.fright_left.toFixed(1) + "s";
+  } else {
+    fBanner.classList.remove("fright");
+  }
+
+  const me = Arcade.me ? s.players.find(p => p.id === Arcade.me.id) : null;
+  $("#btn-pac").classList.toggle("active", me && me.team === "pacman");
+  $("#btn-ghost").classList.toggle("active", me && me.team === "ghost");
+
+  const caughtBox = $("#caught-box");
+  if (me && !me.a) {
+    caughtBox.style.display = "block";
+    $("#caught-title").textContent = me.team === "pacman" ? "Caught by Ghost!" : "Eaten by Pac-Man!";
+    $("#respawn-timer").textContent = (me.rt || 0).toFixed(1);
+  } else {
+    caughtBox.style.display = "none";
+  }
+
+  const pacPlayers = s.players.filter(p => p.team === "pacman");
+  const ghostPlayers = s.players.filter(p => p.team === "ghost");
+  $("#pac-count").textContent = pacPlayers.length;
+  $("#ghost-count").textContent = ghostPlayers.length;
+
+  const pacBox = $("#pac-roster");
+  pacBox.textContent = "";
+  pacPlayers.sort((a,b) => b.s - a.s).forEach(p => {
+    const row = Arcade.el("div", "player-row" + (p.id === Arcade.me?.id ? " me" : "") + (!p.a ? " dead" : ""));
+    const dot = Arcade.el("div", "avatar"); dot.style.background = PAC_COLORS[p.c % PAC_COLORS.length];
+    row.append(dot, Arcade.el("b", "", p.n), Arcade.el("span", "stat", `${p.s} · ${p.dots}● ${p.ge}👻`));
+    pacBox.appendChild(row);
+  });
+
+  const ghostBox = $("#ghost-roster");
+  ghostBox.textContent = "";
+  ghostPlayers.sort((a,b) => b.s - a.s).forEach(p => {
+    const row = Arcade.el("div", "player-row" + (p.id === Arcade.me?.id ? " me" : "") + (!p.a ? " dead" : ""));
+    const dot = Arcade.el("div", "avatar"); dot.style.background = GHOST_COLORS[p.c % GHOST_COLORS.length];
+    row.append(dot, Arcade.el("b", "", p.n), Arcade.el("span", "stat", `${p.s} · ${p.pc}🟡`));
+    ghostBox.appendChild(row);
+  });
+
+  if (s.events && s.events.length) {
+    const feed = $("#feed-box");
+    feed.textContent = "";
+    s.events.slice(-4).reverse().forEach(ev => {
+      const item = Arcade.el("div", "feed-item");
+      if (ev.t === "eat_ghost") item.innerHTML = `🟡 <b>${ev.pacman}</b> ate 👻 <b>${ev.ghost}</b> (+${ev.pts})`;
+      else if (ev.t === "caught_pacman") item.innerHTML = `👻 <b>${ev.ghost}</b> caught 🟡 <b>${ev.pacman}</b> (+${ev.pts})`;
+      else if (ev.t === "energized") item.innerHTML = `⚡ <b>${ev.who}</b> grabbed Power Pellet!`;
+      else if (ev.t === "fruit") item.innerHTML = `🍎 <b>${ev.who}</b> got ${ev.kind} (+${ev.pts})`;
+      else if (ev.t === "clear") item.innerHTML = `🎉 <b>${ev.text}</b>`;
+      feed.appendChild(item);
+    });
+  }
+}
+
+let knownEvents = new Set();
+function checkNewEvents(events) {
+  if (!events) return;
+  for (const ev of events) {
+    const key = JSON.stringify(ev);
+    if (knownEvents.has(key)) continue;
+    knownEvents.add(key);
+    if (knownEvents.size > 50) knownEvents.clear();
+
+    if (ev.t === "eat_ghost" && ev.x !== undefined) {
+      const px = (ev.x + 0.5) * CS, py = (ev.y + 0.5) * CS;
+      spawnParticles(px, py, "#1e90ff", 24);
+      spawnPopup(px, py, `+${ev.pts}`, "#1e90ff");
+    } else if (ev.t === "caught_pacman" && ev.x !== undefined) {
+      const px = (ev.x + 0.5) * CS, py = (ev.y + 0.5) * CS;
+      spawnParticles(px, py, "#ffd32a", 24);
+      spawnPopup(px, py, `+${ev.pts}`, "#ff4757");
+    } else if (ev.t === "energized") {
+      spawnParticles(cv.width / 2, cv.height / 2, "#ffd32a", 36);
+    }
+  }
+}
+
+render();
+
+Arcade.start({
+  welcome: () => {},
+  msg(m) {
+    if (m.t === "state") {
+      S = m;
+      checkNewEvents(m.events);
+      updateHUD(m);
+    }
+  }
+});
+</script></body></html>

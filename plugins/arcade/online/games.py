@@ -273,7 +273,7 @@ DIRS = [(0, -1), (1, 0), (0, 1), (-1, 0)]
 
 class Snake(Game):
     tick = 0.11
-    W, H = 48, 32
+    W, H = 72, 48
     COLORS = 10
 
     def __init__(self, room):
@@ -316,7 +316,7 @@ class Snake(Game):
         taken = self.occupied()
         heads = [s["cells"][0] for s in self.snakes.values() if s["alive"]]
         for _ in range(80):
-            x, y = random.randint(6, self.W - 7), random.randint(6, self.H - 7)
+            x, y = random.randint(8, self.W - 9), random.randint(8, self.H - 9)
             d = 1 if x < self.W / 2 else 3
             dx = DIRS[d][0]
             cells = [(x, y), (x - dx, y), (x - 2 * dx, y)]
@@ -329,7 +329,7 @@ class Snake(Game):
 
     def fill_food(self):
         alive = sum(1 for s in self.snakes.values() if s["alive"])
-        want = 14 + 3 * alive
+        want = 30 + 5 * alive
         taken = self.occupied()
         tries = 0
         while len(self.food) < want and tries < 200:
@@ -773,6 +773,280 @@ class FoxRace(Game):
                                          "pts": r["s"] + r["fb"] + r["hb"]} for i, r in self.racers.items()]})
 
 
+
+PACMAN_MAZE = [
+    "#########################################",  # 0
+    "#o........#........ . ........#........o#",  # 1
+    "#.###.###.#.######.###.######.#.###.###.#",  # 2
+    "#.###.###.#.######.###.######.#.###.###.#",  # 3
+    "#.................. . ..................#",  # 4
+    "#.###.#.######.###.###.###.######.#.###.#",  # 5
+    "#.....#...##...#...###...#...##...#.....#",  # 6
+    "#####.###.##.###.#######.###.##.###.#####",  # 7
+    "    #.#..........#  .  #..........#.#    ",  # 8
+    "#####.#.###--###.###-###.###--###.#.#####",  # 9
+    "     .#.#      #...   ...#      #.#.     ",  # 10
+    "#####.#.# #### #.#######.# #### #.#.#####",  # 11
+    "    #.#.# #  # #...   ...# #  # #.#.#    ",  # 12
+    "#####.#.# #### #.#######.# #### #.#.#####",  # 13
+    "     .#.#      #...   ...#      #.#.     ",  # 14
+    "#####.#.########.#######.########.#.#####",  # 15
+    "    #.#..........#     #..........#.#    ",  # 16
+    "#####.#.######.###########.######.#.#####",  # 17
+    "#.........##....... . .......##.........#",  # 18
+    "#.###.###.##.#####.###.#####.##.###.###.#",  # 19
+    "#o..#............#  .  #............#..o#",  # 20
+    "###.#.#.######.###########.######.#.#.###",  # 21
+    "#.....#...##....... . .......##...#.....#",  # 22
+    "#.#######.##.#####.###.#####.##.#######.#",  # 23
+    "#.................. . ..................#",  # 24
+    "#.###.########.###.###.###.########.###.#",  # 25
+    "#...#..........#... . ...#..........#...#",  # 26
+    "#o..#..........#... . ...#..........#..o#",  # 27
+    "#########################################",  # 28
+]
+
+GHOST_SPAWNS = [(20, 10), (19, 10), (21, 10), (18, 10), (22, 10), (20, 12), (19, 12), (21, 12), (20, 14)]
+PACMAN_SPAWNS = [(20, 22), (19, 22), (21, 22), (18, 22), (22, 22), (20, 24), (19, 24), (21, 24), (20, 18), (19, 18), (21, 18)]
+
+
+class PacmanOnline(Game):
+    tick = 0.12
+    W, H = 41, 29
+
+    def __init__(self, room):
+        super().__init__(room)
+        self.players = {}
+        self.team_scores = {"pacman": 0, "ghost": 0}
+        self.dots = set()
+        self.power = set()
+        self.frightened_until = 0.0
+        self.combo = 1
+        self.fruit = None
+        self.next_fruit_at = time.monotonic() + 18.0
+        self.ticks = 0
+        self.events = []
+        self.reset_dots()
+
+    def reset_dots(self):
+        self.dots.clear()
+        self.power.clear()
+        for y in range(self.H):
+            for x in range(self.W):
+                c = PACMAN_MAZE[y][x]
+                if c == ".":
+                    self.dots.add((x, y))
+                elif c == "o":
+                    self.power.add((x, y))
+
+    def join(self, p):
+        pac_count = sum(1 for q in self.players.values() if q["team"] == "pacman")
+        ghost_count = sum(1 for q in self.players.values() if q["team"] == "ghost")
+        team = "pacman" if pac_count <= ghost_count else "ghost"
+        player = {
+            "id": p.id,
+            "name": p.name,
+            "team": team,
+            "x": 0, "y": 0,
+            "dir": 1, "next_dir": 1,
+            "alive": True,
+            "shield": 2.5,
+            "score": 0,
+            "dots": 0,
+            "ghosts_eaten": 0,
+            "pacmen_caught": 0,
+            "respawn_at": 0.0,
+            "color": 0,
+        }
+        self.assign_color(player)
+        self.spawn(player)
+        self.players[p.id] = player
+        self.push()
+
+    def leave(self, p):
+        self.players.pop(p.id, None)
+
+    def assign_color(self, pl):
+        if pl["team"] == "pacman":
+            pl["color"] = pl["id"] % 5
+        else:
+            pl["color"] = pl["id"] % 8
+
+    def spawn(self, pl):
+        spawns = PACMAN_SPAWNS if pl["team"] == "pacman" else GHOST_SPAWNS
+        idx = pl["id"] % len(spawns)
+        pl["x"], pl["y"] = spawns[idx]
+        pl["dir"] = 1 if pl["team"] == "pacman" else 0
+        pl["next_dir"] = pl["dir"]
+        pl["alive"] = True
+        pl["shield"] = 2.5 if pl["team"] == "pacman" else 0.0
+        pl["respawn_at"] = 0.0
+
+    def can_move(self, x, y, d, is_ghost):
+        dx, dy = DIRS[d]
+        nx = (x + dx) % self.W
+        ny = y + dy
+        if not (0 <= ny < self.H):
+            return False
+        c = PACMAN_MAZE[ny][nx]
+        if c == "#":
+            return False
+        if c == "-":
+            return is_ghost
+        return True
+
+    def msg(self, p, m):
+        pl = self.players.get(p.id)
+        if pl is None:
+            return
+        t = m.get("t")
+        if t == "dir" and pl["alive"]:
+            d = integer(m.get("d"), 0, 3)
+            if d is not None:
+                pl["next_dir"] = d
+        elif t == "team":
+            team = str(m.get("team"))
+            if team in ("pacman", "ghost") and team != pl["team"]:
+                pl["team"] = team
+                self.assign_color(pl)
+                self.spawn(pl)
+                self.push()
+        elif t == "respawn" and not pl["alive"]:
+            now = time.monotonic()
+            if now >= pl["respawn_at"]:
+                self.spawn(pl)
+                self.push()
+
+    def step(self):
+        now = time.monotonic()
+        frightened = now < self.frightened_until
+        self.ticks += 1
+
+        if self.fruit:
+            if now >= self.fruit["exp"]:
+                self.fruit = None
+                self.next_fruit_at = now + random.uniform(20.0, 35.0)
+        elif now >= self.next_fruit_at:
+            fruits = [("cherry", 100), ("strawberry", 300), ("orange", 500), ("bell", 700), ("key", 1000)]
+            kind, pts = random.choice(fruits)
+            self.fruit = {"x": 20, "y": 18, "kind": kind, "pts": pts, "exp": now + 14.0}
+
+        for pl in self.players.values():
+            if not pl["alive"]:
+                if now >= pl["respawn_at"]:
+                    self.spawn(pl)
+                continue
+
+            if pl["team"] == "ghost" and frightened and (self.ticks % 3 == 0):
+                continue
+
+            if self.can_move(pl["x"], pl["y"], pl["next_dir"], pl["team"] == "ghost"):
+                pl["dir"] = pl["next_dir"]
+            if self.can_move(pl["x"], pl["y"], pl["dir"], pl["team"] == "ghost"):
+                dx, dy = DIRS[pl["dir"]]
+                pl["x"] = (pl["x"] + dx) % self.W
+                pl["y"] = pl["y"] + dy
+
+            if pl["shield"] > 0:
+                pl["shield"] = max(0.0, round(pl["shield"] - self.tick, 2))
+
+            if self.fruit and pl["x"] == self.fruit["x"] and pl["y"] == self.fruit["y"]:
+                pts = self.fruit["pts"]
+                kind = self.fruit["kind"]
+                self.fruit = None
+                self.next_fruit_at = now + random.uniform(20.0, 35.0)
+                pl["score"] += pts
+                self.team_scores[pl["team"]] += pts
+                self.events.append({"t": "fruit", "who": pl["name"], "kind": kind, "pts": pts})
+
+            if pl["team"] == "pacman":
+                pos = (pl["x"], pl["y"])
+                if pos in self.dots:
+                    self.dots.discard(pos)
+                    pl["dots"] += 1
+                    pl["score"] += 10
+                    self.team_scores["pacman"] += 10
+                    if not self.dots and not self.power:
+                        self.team_scores["pacman"] += 2000
+                        self.reset_dots()
+                        self.events.append({"t": "clear", "text": "PAC-MAN TEAM CLEARED THE MAZE! +2000 PTS"})
+                elif pos in self.power:
+                    self.power.discard(pos)
+                    pl["score"] += 50
+                    self.team_scores["pacman"] += 50
+                    self.frightened_until = now + 9.0
+                    self.combo = 1
+                    self.events.append({"t": "energized", "who": pl["name"]})
+
+        pacmen = [p for p in self.players.values() if p["team"] == "pacman" and p["alive"]]
+        ghosts = [p for p in self.players.values() if p["team"] == "ghost" and p["alive"]]
+        for pac in pacmen:
+            for gh in ghosts:
+                if pac["x"] == gh["x"] and pac["y"] == gh["y"]:
+                    if pac["shield"] > 0:
+                        continue
+                    if frightened:
+                        pts = 200 * self.combo
+                        self.combo = min(1600, self.combo * 2)
+                        pac["score"] += pts
+                        pac["ghosts_eaten"] += 1
+                        self.team_scores["pacman"] += pts
+                        gh["alive"] = False
+                        gh["respawn_at"] = now + 3.0
+                        self.events.append({"t": "eat_ghost", "pacman": pac["name"], "ghost": gh["name"],
+                                            "pts": pts, "x": pac["x"], "y": pac["y"]})
+                    else:
+                        pts = 300
+                        gh["score"] += pts
+                        gh["pacmen_caught"] += 1
+                        self.team_scores["ghost"] += pts
+                        pac["alive"] = False
+                        pac["respawn_at"] = now + 3.0
+                        self.events.append({"t": "caught_pacman", "pacman": pac["name"], "ghost": gh["name"],
+                                            "pts": pts, "x": pac["x"], "y": pac["y"]})
+                        break
+
+        if len(self.events) > 10:
+            self.events = self.events[-10:]
+        self.push()
+
+    def push(self):
+        now = time.monotonic()
+        fright_left = max(0.0, round(self.frightened_until - now, 1))
+        W = self.W
+        msg = {
+            "t": "state",
+            "w": W,
+            "h": self.H,
+            "scores": self.team_scores,
+            "fright": fright_left > 0,
+            "fright_left": fright_left,
+            "dots": [y * W + x for x, y in self.dots],
+            "power": [y * W + x for x, y in self.power],
+            "fruit": {"x": self.fruit["x"], "y": self.fruit["y"], "k": self.fruit["kind"], "pts": self.fruit["pts"]} if self.fruit else None,
+            "players": [
+                {
+                    "id": p["id"],
+                    "n": p["name"],
+                    "team": p["team"],
+                    "x": p["x"],
+                    "y": p["y"],
+                    "d": p["dir"],
+                    "a": p["alive"],
+                    "s": p["score"],
+                    "sh": p["shield"] > 0,
+                    "c": p["color"],
+                    "dots": p["dots"],
+                    "ge": p["ghosts_eaten"],
+                    "pc": p["pacmen_caught"],
+                    "rt": max(0.0, round(p["respawn_at"] - now, 1)) if not p["alive"] else 0,
+                }
+                for p in self.players.values()
+            ],
+            "events": self.events[-5:],
+        }
+        self.room.broadcast(msg)
+
 CATALOG = {
     "snake": {"cls": Snake, "title": "Snake.io", "cap": 16, "icon": "S",
               "blurb": "eat, grow, make others crash into you - 2 to 16 players"},
@@ -786,4 +1060,7 @@ CATALOG = {
                 "blurb": "3D river race: pick a fox, grab crates, snowballs, mines and seekers - 2 to 16"},
     "pong": {"cls": Pong, "title": "Pong", "cap": 20, "icon": "P",
              "blurb": "first to 7 wins - 2 players + audience"},
+    "pacman": {"cls": PacmanOnline, "title": "Pac-Man Teams", "cap": 20, "icon": "P",
+              "blurb": "Pac-Men vs Ghosts: choose your team, eat pellets, hunt or be hunted - 2 to 20 players"},
+
 }

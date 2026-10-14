@@ -2,10 +2,10 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Snake.io</title><link rel="stylesheet" href="common.css">
 <style>
-  main { align-items: stretch; flex-wrap: nowrap; }
-  .arena { flex: 1; min-width: 0; display: flex; justify-content: center; align-items: flex-start; position: relative; }
-  canvas { width: 100%; max-width: 1000px; aspect-ratio: 3 / 2; border-radius: 16px; border: 1px solid var(--line); background: #0a0e14; touch-action: none; }
-  .side { width: 250px; flex: none; }
+  main { align-items: center; justify-content: center; max-width: 1800px; margin: 0 auto; width: 100%; padding: 10px 16px; height: calc(100vh - 65px); flex-wrap: nowrap; gap: 16px; }
+  .arena { flex: 1; min-width: 0; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; }
+  canvas { width: 100%; max-width: 1440px; max-height: calc(100vh - 90px); aspect-ratio: 3 / 2; object-fit: contain; border-radius: 16px; border: 1px solid var(--line); background: #0a0e14; touch-action: none; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .side { width: 260px; flex: none; max-height: calc(100vh - 90px); overflow-y: auto; }
   .row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
   .row:last-child { border: 0; }
   .dot { width: 12px; height: 12px; border-radius: 4px; flex: none; }
@@ -23,7 +23,7 @@
 <header class="bar"><span class="brand">arcade</span><span class="room" id="room"></span>
   <button class="pill" id="who" title="Change name"></button><span class="pill bad" id="conn">connecting…</span></header>
 <main>
-  <div class="arena"><canvas id="cv" width="960" height="640"></canvas>
+  <div class="arena"><canvas id="cv" width="1440" height="960"></canvas>
     <div class="over" id="over"><h2>You crashed</h2><p id="why"></p><button class="btn" id="respawn">Respawn (space)</button></div></div>
   <div class="side card"><h3>Leaderboard</h3><div id="board"></div>
     <p class="muted" style="margin:12px 0 0;font-size:13px">arrows / WASD / swipe · eat dots, make others hit you</p></div>

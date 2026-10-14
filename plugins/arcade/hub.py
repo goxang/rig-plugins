@@ -374,7 +374,7 @@ class Online:
         lines.append("")
         if not self.rooms:
             lines += [f"  {MUTED}You are not hosting any room.{RESET}", "",
-                      f"  {ACCENT}n{RESET}  host a new room - Snake.io, Draw & Guess, Tic-Tac-Toe, Connect Four, Pong or Fox & Floe",
+                      f"  {ACCENT}n{RESET}  host a new room - Snake.io, Draw & Guess, Tic-Tac-Toe, Connect Four, Pong, Fox & Floe or Pac-Man",
                       f"  {ACCENT}j{RESET}  join a teammate: type their ip and port, the game opens in your browser", "",
                       f"  {MUTED}If a teammate cannot connect, allow the port in your firewall.{RESET}"]
         else:

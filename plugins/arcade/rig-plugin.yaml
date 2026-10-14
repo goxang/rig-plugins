@@ -1,6 +1,6 @@
 name: arcade
-version: 1.5.0
-description: a Games tab with two parts, Offline (snake, sudoku, tic-tac-toe, 2048, tetris, pac-man in a terminal pane) and Online (host a room, share ip:port, play snake.io, draw & guess, tic-tac-toe, connect four, pong or the fox & floe river race with five foxes, crate weapons and host controls in the browser)
+version: 1.6.0
+description: a Games tab with two parts, Offline (snake, sudoku, tic-tac-toe, 2048, tetris, pac-man in a terminal pane) and Online (host a room, share ip:port, play snake.io, draw & guess, tic-tac-toe, connect four, pong, the fox & floe river race, or team pac-man in the browser)
 publisher: goxang
 views:
   Games:

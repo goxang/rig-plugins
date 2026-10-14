@@ -144,6 +144,22 @@ async def draw(port):
     assert next(p for p in s["players"] if p["n"] == "b")["s"] > 100
 
 
+
+async def pacman(port):
+    a, b = await Client.open(port, "a"), await Client.open(port, "b")
+    s = await a.state(lambda m: len(m["players"]) == 2)
+    assert s["w"] == 41 and s["h"] == 29, s
+    assert len(s["dots"]) > 400 and len(s["power"]) == 6, s
+    teams = {p["n"]: p["team"] for p in s["players"]}
+    assert set(teams.values()) == {"pacman", "ghost"}, teams
+    await b.send({"t": "team", "team": "pacman"})
+    s = await a.state(lambda m: next(p for p in m["players"] if p["n"] == "b")["team"] == "pacman")
+    assert next(p for p in s["players"] if p["n"] == "b")["team"] == "pacman"
+    await a.send({"t": "dir", "d": 1})
+    await asyncio.sleep(0.3)
+    s = await a.state()
+    assert s["scores"]["pacman"] >= 0
+
 async def foxfloe(port):
     status, body = get(port, "/foxfloe/vendor/three.module.js")
     assert status == 200 and body.startswith(b"/**")
@@ -240,7 +256,7 @@ async def fox_weapons(port, a, b, c):
         assert e.code == 404
 
 async def main():
-    games = {"tictactoe": tictactoe, "connect4": connect4, "pong": pong, "snake": snake, "draw": draw, "foxfloe": foxfloe}
+    games = {"tictactoe": tictactoe, "connect4": connect4, "pong": pong, "snake": snake, "draw": draw, "foxfloe": foxfloe, "pacman": pacman}
     for game, play in games.items():
         proc, port = await run_server(game)
         try:
