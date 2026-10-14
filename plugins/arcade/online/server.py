@@ -18,7 +18,8 @@ WEB = Path(__file__).resolve().parent / "web"
 GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 MAX_FRAME = 64 * 1024
 IDLE = 60
-TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
+TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+         ".json": "application/json", ".png": "image/png", ".glb": "model/gltf-binary", ".wav": "audio/wav"}
 
 
 def frame(payload, op=1):
@@ -142,11 +143,13 @@ def respond(writer, status, body=b"", ctype="text/plain; charset=utf-8"):
 
 
 def static(room, path):
-    name = {"/": f"{room.kind}.html"}.get(path, path.lstrip("/"))
-    if "/" in name or name.startswith(".") or Path(name).suffix not in TYPES:
+    if path == "/":
+        path = f"/{room.kind}/index.html" if (WEB / room.kind).is_dir() else f"/{room.kind}.html"
+    parts = path.split("/")[1:]
+    if not parts or any(not p or p.startswith(".") for p in parts):
         return None
-    file = WEB / name
-    return (file.read_bytes(), TYPES[file.suffix]) if file.is_file() else None
+    file = WEB.joinpath(*parts)
+    return (file.read_bytes(), TYPES[file.suffix]) if file.suffix in TYPES and file.is_file() else None
 
 
 async def handle(reader, writer, room):

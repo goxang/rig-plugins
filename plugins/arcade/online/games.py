@@ -603,6 +603,68 @@ class Draw(Game):
         self.push()
 
 
+class FoxRace(Game):
+    """Everyone rows one shared river (same seed) to the finish line; points decide the podium.
+    The browser respawns a crashed boat and reports distance and points, the room keeps time, fish and places."""
+    tick = 0.1
+    GOAL = 1500
+    COUNTDOWN = 3.0
+    GRACE = 30
+    PODIUM = (600, 400, 250)
+    LATE = 100
+
+    def __init__(self, room):
+        super().__init__(room)
+        self.phase, self.at, self.seed, self.racers, self.taken = "lobby", 0.0, 0, {}, set()
+
+    def join(self, p):
+        self.racers[p.id] = {"n": p.name, "d": 0, "x": 0, "v": 0, "s": 0, "f": None, "fb": 0, "in": False}
+
+    def leave(self, p):
+        self.racers.pop(p.id, None)
+
+    def msg(self, p, m):
+        r = self.racers.get(p.id)
+        if r is None:
+            return
+        t = m.get("t")
+        if t == "start" and self.phase in ("lobby", "done"):
+            for q in self.racers.values():
+                q.update({"d": 0, "x": 0, "v": 0, "s": 0, "f": None, "fb": 0, "in": True})
+            self.taken.clear()
+            self.seed = random.randrange(2 ** 31)
+            self.phase, self.at = "countdown", time.time() + self.COUNTDOWN
+        elif self.phase != "racing" or not r["in"] or r["f"] is not None:
+            return
+        elif t == "pos":
+            r["d"] = num(m.get("d"), r["d"], self.GOAL, r["d"])
+            r["x"] = num(m.get("x"), -8, 8, 0)
+            r["v"] = num(m.get("v"), 0, 60, 0)
+            r["s"] = int(num(m.get("s"), 0, 10 ** 6, r["s"]))
+            if r["d"] >= self.GOAL:
+                place = sum(q["f"] is not None for q in self.racers.values())
+                r["f"], r["v"] = round(time.time() - self.at, 2), 0
+                r["fb"] = self.PODIUM[place] if place < len(self.PODIUM) else self.LATE
+        elif t == "take":
+            fish = integer(m.get("id"), 0, 10 ** 6)
+            if fish is not None and fish not in self.taken:
+                self.taken.add(fish)
+                self.room.broadcast({"t": "took", "id": fish, "by": p.id})
+
+    def step(self):
+        now = time.time()
+        if self.phase == "countdown" and now >= self.at:
+            self.phase = "racing"
+        elif self.phase == "racing":
+            field = [r for r in self.racers.values() if r["in"]]
+            times = [r["f"] for r in field if r["f"] is not None]
+            if not field or len(times) == len(field) or (times and now - self.at - min(times) > self.GRACE):
+                self.phase = "done"
+        self.room.broadcast({"t": "state", "phase": self.phase, "goal": self.GOAL, "seed": self.seed,
+                             "left": round(max(0.0, self.at - now), 2) if self.phase == "countdown" else 0,
+                             "clock": round(now - self.at, 1) if self.phase == "racing" else 0,
+                             "racers": [{"id": i, **r, "pts": r["s"] + r["fb"]} for i, r in self.racers.items()]})
+
 CATALOG = {
     "snake": {"cls": Snake, "title": "Snake.io", "cap": 16, "icon": "S",
               "blurb": "eat, grow, make others crash into you - 2 to 16 players"},
@@ -612,6 +674,8 @@ CATALOG = {
                   "blurb": "two players, the rest watch and take the next seat"},
     "connect4": {"cls": ConnectFour, "title": "Connect Four", "cap": 20, "icon": "C",
                  "blurb": "drop discs, line up four - 2 players + audience"},
+    "foxfloe": {"cls": FoxRace, "title": "Fox & Floe", "cap": 16, "icon": "F",
+                "blurb": "3D race down one shared river: slipstream, overtake, steal fish - 2 to 16"},
     "pong": {"cls": Pong, "title": "Pong", "cap": 20, "icon": "P",
              "blurb": "first to 7 wins - 2 players + audience"},
 }

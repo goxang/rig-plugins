@@ -144,8 +144,37 @@ async def draw(port):
     assert next(p for p in s["players"] if p["n"] == "b")["s"] > 100
 
 
+async def foxfloe(port):
+    status, body = get(port, "/foxfloe/vendor/three.module.js")
+    assert status == 200 and body.startswith(b"/**")
+    a, b = await Client.open(port, "a"), await Client.open(port, "b")
+    await a.state(lambda m: len(m["racers"]) == 2 and m["phase"] == "lobby")
+    await a.send({"t": "pos", "d": 999})
+    await a.send({"t": "take", "id": 1})
+    await b.send({"t": "start"})
+    s = await a.state(lambda m: m["phase"] == "countdown")
+    assert all(r["in"] and r["d"] == 0 for r in s["racers"]) and s["seed"], s
+    await a.state(lambda m: m["phase"] == "racing", 6)
+    await a.send({"t": "take", "id": 7})
+    await b.send({"t": "take", "id": 7})
+    took = await b.until(lambda m: m.get("t") == "took")
+    assert took["id"] == 7 and took["by"] != (await b.state())["racers"][1]["id"], took
+    await a.send({"t": "pos", "d": 400, "x": 1.5, "v": 18, "s": 900})
+    await a.send({"t": "pos", "d": 100})
+    await b.send({"t": "pos", "d": "x"})
+    s = await b.state(lambda m: next(r for r in m["racers"] if r["n"] == "a")["d"] == 400)
+    assert next(r for r in s["racers"] if r["n"] == "b")["d"] == 0, s
+    await b.send({"t": "pos", "d": 1500, "s": 1500})
+    await a.send({"t": "pos", "d": 5000, "s": 2000})
+    s = await a.state(lambda m: m["phase"] == "done")
+    pts = {r["n"]: r["pts"] for r in s["racers"]}
+    assert pts == {"a": 2000 + 400, "b": 1500 + 600}, pts
+    c = await Client.open(port, "c")
+    s = await c.state(lambda m: len(m["racers"]) == 3)
+    assert not next(r for r in s["racers"] if r["n"] == "c")["in"]
+
 async def main():
-    games = {"tictactoe": tictactoe, "connect4": connect4, "pong": pong, "snake": snake, "draw": draw}
+    games = {"tictactoe": tictactoe, "connect4": connect4, "pong": pong, "snake": snake, "draw": draw, "foxfloe": foxfloe}
     for game, play in games.items():
         proc, port = await run_server(game)
         try:
