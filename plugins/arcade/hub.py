@@ -182,6 +182,16 @@ def probe(host, port, timeout=1.5):
         return None
 
 
+def admin(port, command):
+    """One operator command to a room on this machine; the room only obeys loopback with this header."""
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/admin/{command}", headers={"X-Rig-Admin": "1"})
+    try:
+        with web_opener().open(req, timeout=2) as r:
+            return json.loads(r.read(65536))
+    except (OSError, ValueError):
+        return None
+
+
 def local_ips():
     ips = []
     try:
@@ -239,7 +249,7 @@ def load_rooms():
             f.unlink(missing_ok=True)
             continue
         info = probe("127.0.0.1", room["port"], 0.4) or {}
-        room.update(players=info.get("players"), cap=info.get("cap"))
+        room.update(players=info.get("players"), cap=info.get("cap"), locked=info.get("locked"))
         rooms.append(room)
     return rooms
 
@@ -364,20 +374,22 @@ class Online:
         lines.append("")
         if not self.rooms:
             lines += [f"  {MUTED}You are not hosting any room.{RESET}", "",
-                      f"  {ACCENT}n{RESET}  host a new room - Snake.io, Draw & Guess, Tic-Tac-Toe, Connect Four or Pong",
+                      f"  {ACCENT}n{RESET}  host a new room - Snake.io, Draw & Guess, Tic-Tac-Toe, Connect Four, Pong or Fox & Floe",
                       f"  {ACCENT}j{RESET}  join a teammate: type their ip and port, the game opens in your browser", "",
                       f"  {MUTED}If a teammate cannot connect, allow the port in your firewall.{RESET}"]
         else:
             lines.append(f" {MUTED}{pad('  #', 5)}{pad('GAME', 14)}{pad('ROOM', 22)}{pad('PLAYERS', 9)}{pad('UP', 8)}JOIN LINK{RESET}")
             for i, r in enumerate(self.rooms):
                 cap = f"{r['players']}/{r['cap']}" if r.get("players") is not None else "?"
+                cap += " lock" if r.get("locked") else ""
                 row = (f"  {ACCENT}{i + 1}{RESET}  {BOLD}{pad(CATALOG[r['game']]['title'], 14)}{RESET}"
-                       f"{pad(r['room'][:20], 22)}{pad(cap, 9)}{pad(age(r['started']), 8)}{OK}{self.url(r)}{RESET}")
+                       f"{pad(r['room'][:20], 22)}{pad(cap, 10)}{pad(age(r['started']), 8)}{OK}{self.url(r)}{RESET}")
                 lines.append((SEL + pad(row, min(cols, 100)) + RESET) if i == self.sel else row)
         if self.note and time.time() < self.note_until:
             lines += ["", f" {self.note_color}{self.note}{RESET}"]
         footer = prompt or keys_footer(("n", "new room"), ("j", "join"), ("enter", "open"), ("c", "copy link"),
-                                       ("s", "stop"), ("↑↓", "select"), ("q", "quit"))
+                                       ("k", "kick"), ("l", "lock"), ("x", "stop race"), ("r", "restart"),
+                                       ("s", "stop"), ("a", "stop all"), ("↑↓", "select"), ("q", "quit"))
         self.term.draw(lines, footer)
 
     def ask(self, label, default="", hint=""):
@@ -424,6 +436,21 @@ class Online:
             self.say(f"'{name}' is live - send teammates {self.ips[0]}:{port}  (c copies the link)")
         else:
             self.say(f"Could not start the room: {err}", ERR, 12)
+
+    def kick(self, room):
+        out = admin(room["port"], "players")
+        people = out["players"] if out else []
+        if not people:
+            return self.say("Nobody to remove in that room", WARN)
+        choice = menu(self.term, f"Remove from '{room['room']}'", "they are blocked from rejoining until the room restarts",
+                      [(p["name"] + ("  (host)" if p["host"] else ""), f"id {p['id']}") for p in people],
+                      keys_footer(("↑↓", "move"), ("enter", "remove"), ("q", "back")))
+        if choice is None:
+            return
+        who = people[choice]
+        out = admin(room["port"], f"kick?id={who['id']}")
+        self.say(f"Removed {who['name']}" if out and out.get("ok") else f"Could not remove {who['name']}",
+                 OK if out and out.get("ok") else ERR)
 
     def join(self):
         recent = self.recent()
@@ -480,6 +507,30 @@ class Online:
             elif k == "c" and self.rooms:
                 url = self.url(self.rooms[self.sel])
                 self.say(f"Copied {url}" if copy_text(url) else f"No clipboard tool found - the link is {url}", OK)
+            elif k == "k" and self.rooms:
+                self.kick(self.rooms[self.sel])
+            elif k == "l" and self.rooms:
+                room = self.rooms[self.sel]
+                out = admin(room["port"], f"lock?on={0 if room.get('locked') else 1}")
+                self.say(("Locked" if out and out.get("locked") else "Unlocked") + f" '{room['room']}'" if out else "The room did not answer",
+                         OK if out else ERR)
+                self.refresh()
+            elif k == "x" and self.rooms:
+                out = admin(self.rooms[self.sel]["port"], "stop")
+                self.say("Race stopped, everyone is back in the lobby" if out and out.get("ok") else "No race is running in that room",
+                         OK if out and out.get("ok") else WARN)
+            elif k == "r" and self.rooms:
+                room = self.rooms[self.sel]
+                stop_room(room)
+                ok, err = start_room(room["game"], room["room"], room["port"])
+                self.say(f"Restarted '{room['room']}'" if ok else f"Could not restart: {err}", OK if ok else ERR, 10)
+                self.refresh()
+            elif k == "a" and self.rooms:
+                if self.ask(f"Stop all {len(self.rooms)} rooms? type y:", "", "everyone is disconnected") == "y":
+                    for room in self.rooms:
+                        stop_room(room)
+                    self.say("Stopped every room", WARN)
+                    self.refresh()
             elif k == "s" and self.rooms:
                 room = self.rooms[self.sel]
                 if self.ask(f"Stop '{room['room']}'? type y:", "", "everyone in it is disconnected") == "y":

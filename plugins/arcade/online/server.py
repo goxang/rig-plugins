@@ -12,12 +12,15 @@ import time
 import traceback
 from pathlib import Path
 
+from urllib.parse import parse_qsl
+
 from games import CATALOG
 
 WEB = Path(__file__).resolve().parent / "web"
 GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 MAX_FRAME = 64 * 1024
 IDLE = 60
+LOOPBACK = ("127.0.0.1", "::1")
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
          ".json": "application/json", ".png": "image/png", ".glb": "model/gltf-binary", ".wav": "audio/wav"}
 
@@ -62,8 +65,8 @@ async def read_frame(reader):
 
 
 class Player:
-    def __init__(self, pid, name, writer):
-        self.id, self.name, self.writer = pid, name, writer
+    def __init__(self, pid, name, writer, ip=""):
+        self.id, self.name, self.writer, self.ip = pid, name, writer, ip
 
     def write(self, data):
         t = self.writer.transport
@@ -79,6 +82,7 @@ class Room:
     def __init__(self, game, name):
         self.kind, self.name, self.started = game, name, time.time()
         self.players, self.next_id = {}, 1
+        self.locked, self.banned = False, set()
         self.cap = CATALOG[game]["cap"]
         self.game = CATALOG[game]["cls"](self)
 
@@ -98,8 +102,8 @@ class Room:
             out, n = f"{name} {n}", n + 1
         return out
 
-    def add(self, name, writer):
-        p = Player(self.next_id, self.unique(name), writer)
+    def add(self, name, writer, ip=""):
+        p = Player(self.next_id, self.unique(name), writer, ip)
         self.next_id += 1
         self.players[p.id] = p
         return p
@@ -107,7 +111,50 @@ class Room:
     def info(self):
         return {"game": self.kind, "title": CATALOG[self.kind]["title"], "room": self.name,
                 "players": len(self.players), "cap": self.cap, "names": [p.name for p in self.players.values()],
-                "started": int(self.started)}
+                "started": int(self.started), "locked": self.locked}
+
+    def host_id(self):
+        return min(self.players, default=None)
+
+    def kick(self, pid):
+        p = self.players.get(pid)
+        if p is None:
+            return False
+        if p.ip and p.ip not in LOOPBACK:
+            self.banned.add(p.ip)
+        p.write(frame(b'{"t":"kicked"}'))
+        p.writer.transport.close()
+        return True
+
+    def close_all(self):
+        self.broadcast({"t": "closing"})
+        for p in list(self.players.values()):
+            p.writer.transport.close()
+
+    def admin(self, cmd, args):
+        """Host and operator commands; returns a result dict, or None for an unknown command."""
+        if cmd == "players":
+            return {"players": [{"id": p.id, "name": p.name, "host": p.id == self.host_id()} for p in self.players.values()]}
+        if cmd == "kick":
+            try:
+                return {"ok": self.kick(int(args.get("id")))}
+            except (TypeError, ValueError):
+                return {"ok": False}
+        if cmd == "lock":
+            self.locked = str(args.get("on", "1")) not in ("0", "false")
+            return {"locked": self.locked}
+        if cmd == "unban":
+            self.banned.clear()
+            return {"ok": True}
+        return self.game.admin(cmd, args)
+
+
+def guarded_admin(room, cmd, args):
+    try:
+        return room.admin(cmd, args)
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        return {"error": "failed"}
 
 
 def guarded(fn, *args):
@@ -127,13 +174,14 @@ async def ticker(room):
 async def read_head(reader):
     raw = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 10)
     lines = raw.decode("latin-1").split("\r\n")
-    method, path, _ = lines[0].split(" ", 2)
-    headers = {}
+    method, target, _ = lines[0].split(" ", 2)
+    path, _, query = target.partition("?")
+    headers = {":query": dict(parse_qsl(query))}
     for line in lines[1:]:
         if ":" in line:
             k, v = line.split(":", 1)
             headers[k.strip().lower()] = v.strip()
-    return method, path.split("?", 1)[0], headers
+    return method, path, headers
 
 
 def respond(writer, status, body=b"", ctype="text/plain; charset=utf-8"):
@@ -161,6 +209,15 @@ async def handle(reader, writer, room):
             respond(writer, "405 Method Not Allowed")
         elif path == "/info":
             respond(writer, "200 OK", json.dumps(room.info()).encode(), "application/json")
+        elif path.startswith("/admin/"):
+            peer = (writer.get_extra_info("peername") or ("",))[0]
+            # loopback only, and a header a cross-site page cannot send without a preflight we refuse
+            if peer not in LOOPBACK or headers.get("x-rig-admin") != "1":
+                respond(writer, "403 Forbidden", b"operator only")
+            else:
+                out = guarded_admin(room, path[7:], headers[":query"])
+                respond(writer, "200 OK" if out is not None else "404 Not Found",
+                        json.dumps(out if out is not None else {"error": "unknown command"}).encode(), "application/json")
         else:
             hit = static(room, path)
             if hit:
@@ -184,6 +241,7 @@ async def websocket(reader, writer, room, headers):
     if origin and origin.split("://", 1)[-1] != host:
         respond(writer, "403 Forbidden", b"cross-origin")
         return
+    ip = (writer.get_extra_info("peername") or ("",))[0]
     key = headers.get("sec-websocket-key", "")
     if not key:
         respond(writer, "400 Bad Request", b"no key")
@@ -211,13 +269,19 @@ async def websocket(reader, writer, room, headers):
             if player is None:
                 if m.get("t") != "join":
                     break
+                if ip in room.banned or (room.locked and ip not in LOOPBACK):
+                    writer.write(frame(json.dumps({"t": "banned" if ip in room.banned else "locked"}).encode()))
+                    break
                 if len(room.players) >= room.cap:
                     writer.write(frame(json.dumps({"t": "full", "cap": room.cap}).encode()))
                     break
-                player = room.add(m.get("name", ""), writer)
+                player = room.add(m.get("name", ""), writer, ip)
                 room.send(player, {"t": "welcome", "id": player.id, "name": player.name, "game": room.kind,
                                    "room": room.name, "title": CATALOG[room.kind]["title"]})
                 guarded(room.game.join, player)
+            elif m.get("t") == "host":
+                if player.id == room.host_id():
+                    guarded_admin(room, str(m.get("cmd", "")), m)
             elif m.get("t") != "ping":
                 guarded(room.game.msg, player, m)
     except (asyncio.IncompleteReadError, asyncio.TimeoutError, ConnectionError, ValueError):
@@ -240,6 +304,8 @@ async def serve(args):
     if task:
         task.cancel()
     server.close()
+    room.close_all()
+    await asyncio.sleep(0.2)
 
 
 def main():

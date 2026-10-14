@@ -335,8 +335,57 @@ function buildWorld() {
     }
   }
 
+  buildExtras();
   terrain = createTerrain(templates, scene);
   for (const L of [player]) L.traverse((c) => { c.frustumCulled = false; });
+}
+
+// props the glb does not have, drawn from primitives in the same flat ink
+function buildExtras() {
+  const ink = (hex) => inkMaterial({ name: 'x' + hex, color: new THREE.Color(hex), vertexColors: false, transparent: false, opacity: 1, side: THREE.FrontSide });
+  const ball = (r, hex, sx = 1, sy = 1, sz = 1, x = 0, y = 0, z = 0) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), ink(hex));
+    m.scale.set(sx, sy, sz); m.position.set(x, y, z);
+    return m;
+  };
+  const group = (name, parts, waterline) => {
+    const g = new THREE.Group();
+    g.add(...parts);
+    g.traverse((c) => { c.frustumCulled = false; if (waterline && c.isMesh) c.layers.enable(WATERLINE_LAYER); });
+    templates[name] = g;
+  };
+  group('Crate', [
+    new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.72), ink(0xffc857)),
+    new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.14, 0.78), ink(0xd2552b)),
+    new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.78, 0.78), ink(0xd2552b)),
+  ].map((m, i) => { m.position.y = 0.45; return m; }), false);
+  const mineParts = [ball(0.4, 0x24324a, 1, 1, 1, 0, 0.3, 0)];
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.28, 6), ink(0xff5a4d));
+    cone.position.set(Math.cos(a) * 0.42, 0.3, Math.sin(a) * 0.42);
+    cone.rotation.z = -Math.cos(a) * Math.PI / 2; cone.rotation.x = Math.sin(a) * Math.PI / 2;
+    mineParts.push(cone);
+  }
+  const top = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.28, 6), ink(0xff5a4d));
+  top.position.set(0, 0.76, 0);
+  mineParts.push(top);
+  group('Mine', mineParts, true);
+  group('Snowball', [ball(0.26, 0xffffff)], false);
+  const seeker = [ball(0.2, 0xff6b81, 1, 0.8, 2.2), ball(0.12, 0xff6b81, 0.3, 1.4, 1, 0, 0, 0.55)];
+  group('Seeker', seeker, false);
+  group('Bear', [
+    ball(0.75, 0xf4f7fa, 1, 0.72, 1.5, 0, 0.4, 0), ball(0.44, 0xf4f7fa, 1, 0.95, 1, 0, 0.78, -1.1),
+    ball(0.2, 0xe2c9a6, 1, 0.8, 1, 0, 0.66, -1.5), ball(0.06, 0x1a1f2b, 1, 1, 1, 0, 0.72, -1.69),
+    ball(0.13, 0xf4f7fa, 1, 1, 0.7, -0.3, 1.18, -1.0), ball(0.13, 0xf4f7fa, 1, 1, 0.7, 0.3, 1.18, -1.0),
+    ball(0.05, 0x1a1f2b, 1, 1, 1, -0.17, 0.88, -1.46), ball(0.05, 0x1a1f2b, 1, 1, 1, 0.17, 0.88, -1.46),
+  ], true);
+  group('Seal', [
+    ball(0.38, 0x6d7b8c, 0.9, 0.7, 2.1, 0, 0.22, 0), ball(0.25, 0x7d8b9c, 1, 1, 1, 0, 0.42, -0.78),
+    ball(0.06, 0x14181f, 1, 1, 1, -0.1, 0.5, -0.99), ball(0.06, 0x14181f, 1, 1, 1, 0.1, 0.5, -0.99),
+    ball(0.05, 0x14181f, 1, 1, 1, 0, 0.4, -1.02),
+    ball(0.16, 0x5b6878, 1.6, 0.3, 0.9, -0.42, 0.14, 0.2), ball(0.16, 0x5b6878, 1.6, 0.3, 0.9, 0.42, 0.14, 0.2),
+  ], true);
 }
 
 const BANK_BAKE = {};
@@ -383,7 +432,7 @@ function shuffleModule(b) {
 }
 
 // ---------------------------------------------------------------- spawning
-let gapX = 0, difficulty = 0, nextRowD = 58, fishSeq = 0, layNar = 0;
+let gapX = 0, difficulty = 0, nextRowD = 58, fishSeq = 0, crateSeq = 0, layNar = 0;
 // the river's layout comes from a seed and is keyed by distance, not time, so every racer rows the same river
 let rnd = Math.random, srnd = Math.random, sections = [];
 function seeded(a) {
@@ -432,6 +481,27 @@ function spawnPowerup(atZ) {
   powerups.push({ o, kind, t: Math.random() * 9 });
 }
 
+function spawnCrate(atZ) {
+  const o = grab('Crate');
+  o.position.set((rnd() * 2 - 1) * (CLAMP_X - layNar - 0.6), 0, atZ);
+  o.rotation.set(0, rnd() * Math.PI * 2, 0);
+  powerups.push({ o, kind: 'Crate', t: Math.random() * 9, id: crateSeq++ });
+}
+
+// bears and seals swim across the river: a moving obstacle, never a surprise (they drift slowly)
+const CRITTER = { Bear: { r: 1.05, drift: 0.8 }, Seal: { r: 0.6, drift: 1.4 } };
+function faceDrift(drift) { return drift > 0 ? -0.9 : 0.9; }
+function spawnCritter(atZ) {
+  const name = rnd() < 0.5 ? 'Bear' : 'Seal';
+  const c = CRITTER[name];
+  const o = grab(name);
+  o.scale.setScalar(1);
+  const drift = (rnd() < 0.5 ? -1 : 1) * c.drift * (0.6 + rnd() * 0.4);
+  o.position.set(riverX(true), 0, atZ);
+  o.rotation.set(0, faceDrift(drift), 0);
+  obstacles.push({ name, o, r: c.r, spin: 0, rider: null, jumpT: true, md: 9, nm: false, drift, ph: rnd() * 6 });
+}
+
 const FLOE_R = { FloeA: 1.0, FloeB: 0.72, FloeC: 1.5 };
 
 function spawnRow(atZ, D) {
@@ -440,6 +510,8 @@ function spawnRow(atZ, D) {
   const gLim = 4.6 - layNar;
   gapX = Math.max(-gLim, Math.min(gLim, gapX + (rnd() * 2 - 1) * 2.4));
   if (D > 60 && rnd() < 0.08) spawnPowerup(atZ - 3);
+  if (D > 70 && rnd() < 0.09) spawnCrate(atZ - 5);
+  if (D > 100 && rnd() < 0.10 + difficulty * 0.06) spawnCritter(atZ - 1);
   const roll = rnd();
   if (roll < 0.13 + difficulty * 0.07) spawnBerg(atZ);
   else if (roll < 0.66) spawnFloes(atZ);
@@ -648,6 +720,7 @@ function setState(s) {
 }
 
 function clearRiver() {
+  clearFx();
   for (const j of jumpers) if (j.phase !== 'alert') releasePenguin(j.o);
   jumpers.length = 0;
   for (const s of splashes) release(s.name, s.o);
@@ -665,7 +738,7 @@ function resetRun(seed = Math.random() * 2 ** 32) {
   clearRiver();
   rnd = seeded(seed); srnd = seeded(seed ^ 0x5bd1e995);
   sections = [{ end: 200, kind: 'calm', nar: 0, snow: 0 }]; curSec = sections[0];
-  nextRowD = 58; fishSeq = 0; layNar = 0; gapX = 0;
+  nextRowD = 58; fishSeq = 0; crateSeq = 0; layNar = 0; gapX = 0;
   player.position.set(0, 0, 0);
   player.rotation.set(0, 0, 0);
   resetStats();
@@ -680,7 +753,7 @@ function resetRun(seed = Math.random() * 2 ** 32) {
 }
 function resetStats() {
   speed = V0; dist = 0; fishCount = 0; vx = 0; aimOn = false; boost = 0; lunge = 0; drive = 0; surge = 0; elapsed = 0; draft = 0;
-  bonus = 0; chain = 0; chainT = 0; mult = 1; nearMisses = 0;
+  bonus = 0; chain = 0; chainT = 0; mult = 1; nearMisses = 0; slowT = 0;
   shieldOn = false; magnetT = 0; invulnT = 0; airborne = false; airY = 0; airVy = 0;
   if (shieldMesh) shieldMesh.visible = false;
   passedBest = best <= 0; lastMilestone = 0;
@@ -703,6 +776,7 @@ function start(force, seed) {
   dayM = 0;
   setState('play');
   doBoost(true);
+  if (CHARS[myChar].shield && raceLock) { shieldOn = true; shieldMesh.visible = true; }
   if (!localStorage.getItem('foxfloe_seen')) {
     localStorage.setItem('foxfloe_seen', '1');
     ui.coach();
@@ -787,6 +861,117 @@ function respawn() {
 let raceLock = false, rivals = [], draft = 0, draftCallT = 0;
 const raceHooks = {};
 const ghosts = new Map();
+// ---------------------------------------------------------------- characters
+// perks: sp top speed, st steering response, shield starts the race with a shield; the room gives a start weapon
+const CHARS = {
+  rusty: { name: 'Rusty', perk: 'balanced', fur: 0xe8742a, oar: null, sp: 1, st: 1 },
+  frost: { name: 'Frost', perk: 'sharp steering', fur: 0xcfe3f2, oar: 0x4aa8ff, sp: 0.97, st: 1.3 },
+  ember: { name: 'Ember', perk: 'fast, wide turns', fur: 0xd8321c, oar: 0xffb300, sp: 1.05, st: 0.88 },
+  shadow: { name: 'Shadow', perk: 'starts with a mine', fur: 0x3b3358, oar: 0xb45cff, sp: 1, st: 1 },
+  lime: { name: 'Lime', perk: 'starts shielded', fur: 0x7fc43a, oar: 0xffd23f, sp: 1, st: 1, shield: true },
+};
+let myChar = 'rusty', slowT = 0, slowF = 1;
+const FOX_PARTS = { FF_fox_orange: 'fur', FF_oar_red: 'oar' };
+function tintFox(root, id) {
+  const c = CHARS[id] || CHARS.rusty;
+  root.traverse((m) => {
+    if (!m.isMesh || Array.isArray(m.material) || !(m.material.name in FOX_PARTS)) return;
+    let mat = m.material;
+    if (!mat.userData.base) {
+      const own = mat.clone();
+      own.onBeforeCompile = mat.onBeforeCompile;
+      own.customProgramCacheKey = mat.customProgramCacheKey;
+      own.userData = { ...mat.userData, base: mat.color.clone() };
+      m.material = mat = own;
+    }
+    const hex = c[FOX_PARTS[mat.name]];
+    if (hex == null) mat.color.copy(mat.userData.base); else mat.color.set(hex);
+  });
+}
+
+// a hit boat slows itself; a shield soaks it. returns true when the shield did
+function hitMe(kind, ms) {
+  if (state !== 'play') return false;
+  if (shieldOn) {
+    shieldOn = false; shieldMesh.visible = false; invulnT = Math.max(invulnT, 0.4);
+    splash3D(player.position.x, 0, 1.4); play('crunch', 0.5, 1.35); ui.call('blocked'); vib(30);
+    return true;
+  }
+  slowT = ms / 1000;
+  slowF = kind === 'mine' ? 0.35 : kind === 'seeker' ? 0.4 : 0.55;
+  shake = Math.max(shake, 0.45);
+  splash3D(player.position.x, 0.4, 1.6); play('splashBig', 0.6, 0.9); snd.crash(); vib([60, 30, 50]);
+  ui.call(kind === 'frost' ? 'frozen' : 'hit');
+  return false;
+}
+
+// shots, mines and frost rings drawn where the room says they are, in distance coordinates
+const shots = [], mines = new Map(), rings = [];
+function flat(color, opacity = 1) {
+  return bendMaterial(new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 }), { rim: false });
+}
+function launchShot(kind, d0, x0, d1, x1) {
+  const o = grab(kind === 'seeker' ? 'Seeker' : 'Snowball');
+  const T = kind === 'seeker' ? 0.9 : 0.5;
+  shots.push({ o, kind, t: 0, T, d0, x0, d1, x1 });
+  play('whoosh1', 0.5, kind === 'seeker' ? 0.8 : 1.3);
+}
+function placeMine(id, d, x) {
+  if (mines.has(id)) return;
+  mines.set(id, { o: grab('Mine'), d, x, t: Math.random() * 6 });
+}
+function boomMine(id, quiet) {
+  const m = mines.get(id);
+  if (!m) return;
+  mines.delete(id);
+  release('Mine', m.o);
+  if (!quiet) { splash3D(m.x, dist - m.d, 2.2); play('splashBig', 0.8, 0.8); }
+}
+function frostRing(d, x) {
+  const o = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.75, 40), flat(0xbfeaff, 0.7));
+  o.rotation.x = -Math.PI / 2;
+  scene.add(o);
+  rings.push({ o, d, x, t: 0 });
+  play('whoosh2', 0.6, 0.6);
+}
+function clearFx() {
+  for (const s of shots) release(s.kind === 'seeker' ? 'Seeker' : 'Snowball', s.o);
+  shots.length = 0;
+  for (const m of mines.values()) release('Mine', m.o);
+  mines.clear();
+  for (const r of rings) scene.remove(r.o);
+  rings.length = 0;
+}
+function updateFx(dt) {
+  for (let i = shots.length - 1; i >= 0; i--) {
+    const s = shots[i];
+    s.t += dt;
+    const k = Math.min(1, s.t / s.T);
+    const z = dist - (s.d0 + (s.d1 - s.d0) * k), x = s.x0 + (s.x1 - s.x0) * k;
+    s.o.position.set(x, s.kind === 'seeker' ? 0.15 + Math.sin(s.t * 18) * 0.05 : 0.7 + Math.sin(k * Math.PI) * 0.9, z);
+    if (s.kind === 'seeker') s.o.rotation.y = Math.atan2(s.x1 - s.x0, -(s.d1 - s.d0)) + Math.PI;
+    else s.o.rotation.x += dt * 9;
+    if (s.kind === 'seeker' && z > -60 && z < DESPAWN_Z) sim.dot(x, z, 0.14, 0.5, 0.1);
+    if (k >= 1) { if (z > SPAWN_Z && z < DESPAWN_Z) splash3D(x, z, 0.9); release(s.kind === 'seeker' ? 'Seeker' : 'Snowball', s.o); shots.splice(i, 1); }
+  }
+  for (const m of mines.values()) {
+    m.t += dt;
+    const z = dist - m.d;
+    m.o.visible = z > SPAWN_Z && z < DESPAWN_Z;
+    m.o.position.set(m.x, 0.15 + Math.sin(m.t * 2.6) * 0.06 + waveY(m.x, z) * 0.8, z);
+    m.o.rotation.y += dt * 0.8;
+  }
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i];
+    r.t += dt;
+    const k = r.t / 0.8;
+    r.o.position.set(r.x, 0.12, dist - r.d);
+    r.o.scale.setScalar(1 + k * 22);
+    r.o.material.opacity = 0.7 * (1 - k);
+    if (k >= 1) { scene.remove(r.o); rings.splice(i, 1); }
+  }
+}
+
 function tookFish(id) {
   const i = pickups.findIndex((p) => p.id === id);
   if (i < 0) return false;
@@ -811,9 +996,10 @@ function updateGhosts(dt) {
       mark.position.y = 2.1;
       o.add(mark);
       scene.add(o);
-      g = { o, mixer, mark, d: r.d, x: r.x, ahead: r.d > dist + 2 };
+      g = { o, mixer, mark, d: r.d, x: r.x, ahead: r.d > dist + 2, ch: null };
       ghosts.set(r.id, g);
     }
+    if (g.ch !== r.ch) { g.ch = r.ch; tintFox(g.o, r.ch); }
     const k = Math.min(1, dt * 10);
     g.d += (r.d + r.v * Math.min(0.5, (now - r.t) / 1000) - g.d) * k;
     g.x += (r.x - g.x) * k;
@@ -1064,7 +1250,8 @@ function update(dt) {
   setDrive(drive);
   if (playing) {
     elapsed += dt;
-    speed = Math.min(VMAX, V0 + elapsed * VRAMP) + surge + rapN * 3.4 + draft * 5;
+    slowT = Math.max(0, slowT - dt);
+    speed = (Math.min(VMAX, V0 + elapsed * VRAMP) + surge + rapN * 3.4 + draft * 5) * CHARS[myChar].sp * (slowT > 0 ? slowF : 1);
     if (dist > curSec.end) enterSection(sectionAt(dist));
     magnetT = Math.max(0, magnetT - dt);
     chainT -= dt;
@@ -1089,8 +1276,8 @@ function update(dt) {
   if (playing || demo) {
     let target = 0;
     if (playing) {
-      if (keys.KeyA || keys.ArrowLeft || padSteer < 0) target -= 7.2;
-      if (keys.KeyD || keys.ArrowRight || padSteer > 0) target += 7.2;
+      if (keys.KeyA || keys.ArrowLeft || padSteer < 0) target -= 7.2 * CHARS[myChar].st;
+      if (keys.KeyD || keys.ArrowRight || padSteer > 0) target += 7.2 * CHARS[myChar].st;
       if (target) {
         // the keys take over; a drag after them starts from wherever the boat is then
         aimOn = false; aimFromX = pointerX;
@@ -1112,7 +1299,7 @@ function update(dt) {
       target = Math.max(-6, Math.min(6, (tx - player.position.x) * 3.2));
       if (Math.random() < dt * 0.5) doBoost(true);
     }
-    vx += (target - vx) * Math.min(1, dt * (airborne ? 4 : 7));
+    vx += (target - vx) * Math.min(1, dt * (airborne ? 4 : 7) * CHARS[myChar].st);
     player.position.x = Math.max(-CLX, Math.min(CLX, player.position.x + (vx + curN) * dt));
     if (Math.abs(player.position.x) >= CLX) vx *= 0.4;
   } else if (drifting) {
@@ -1263,6 +1450,13 @@ function update(dt) {
     ob.o.rotation.y += ob.spin * dt;
     ob.o.position.y = waveY(ob.o.position.x, ob.o.position.z) * (ob.name === 'Berg' ? 0.3 : 0.85);
     if (ob.rider && !ob.jumpT) rideUpdate(ob, dt);
+    if (ob.drift) {
+      ob.ph += dt;
+      ob.o.position.x += ob.drift * dt;
+      if (Math.abs(ob.o.position.x) > CLAMP_X) { ob.drift = -ob.drift; ob.o.rotation.y = faceDrift(ob.drift); }
+      ob.o.rotation.z = Math.sin(ob.ph * 3) * 0.07;
+      ob.o.position.y += Math.sin(ob.ph * 5) * 0.03;
+    }
     if (ob.o.position.z > DESPAWN_Z) {
       if (ob.rider) releasePenguin(ob.rider);
       release(ob.name, ob.o); obstacles.splice(i, 1);
@@ -1517,6 +1711,7 @@ function update(dt) {
       if ((ox - bx) ** 2 + (oz - cz) ** 2 < 1.1) {
         if (playing) {
           if (u.kind === 'Thermos') { shieldOn = true; shieldMesh.visible = true; ui.pop('shield'); }
+          else if (u.kind === 'Crate') { if (raceHooks.crate) raceHooks.crate(u.id); ui.pop('weapon', true); }
           else { magnetT = 8; ui.pop('fish magnet'); }
           snd.powerup();
           vib(25);
@@ -1540,6 +1735,7 @@ function update(dt) {
   // ---- camera
   updateCamera(dt);
   updateGhosts(dt);
+  updateFx(dt);
 
   // ---- water uniforms + simulation step
   WU.uTime.value = animT;
@@ -1664,7 +1860,9 @@ window.__ff = {
   get x() { return player ? player.position.x : 0; },
   river: () => obstacles.map((o) => `${o.name}@${o.o.position.x.toFixed(2)},${(dist - o.o.position.z).toFixed(1)}`).sort(),
   get speed() { return speed; },
-  race: { lock: (on) => { raceLock = on; }, go: (seed) => { if (player) start(true, seed); }, title: () => { if (player) enterTitle(); },
+  race: { chars: CHARS, setChar: (id) => { if (CHARS[id] && player) { myChar = id; tintFox(player, id); } },
+    shot: launchShot, mine: placeMine, boom: boomMine, ring: frostRing, hit: hitMe,
+    lock: (on) => { raceLock = on; }, go: (seed) => { if (player) start(true, seed); }, title: () => { if (player) enterTitle(); },
     set rivals(list) { rivals = list; }, took: tookFish, hooks: raceHooks, get drafting() { return draft > 0.5; } },
   start, forceCrash: () => crash(),
   step: (dt = 1 / 60) => update(dt),

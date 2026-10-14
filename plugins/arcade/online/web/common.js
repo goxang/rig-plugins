@@ -13,6 +13,12 @@
   };
 
   let sock = null;
+  const REFUSED = {
+    kicked: ["removed", "The host removed you from this room"],
+    banned: ["removed", "The host removed you from this room"],
+    locked: ["locked", "This room is locked by its host"],
+    closing: ["closed", "The host closed this room"],
+  };
 
   const Arcade = {
     me: null,
@@ -90,6 +96,12 @@
             dead = true;
             setConn(false, "room full");
             Arcade.toast("This room is full", 8000);
+          } else if (REFUSED[m.t]) {
+            dead = true;
+            setConn(false, REFUSED[m.t][0]);
+            Arcade.toast(REFUSED[m.t][1], 60000);
+          } else if (m.t === "note") {
+            Arcade.toast(m.text, 3500);
           } else {
             h.msg(m);
           }

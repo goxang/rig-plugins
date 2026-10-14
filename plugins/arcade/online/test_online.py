@@ -172,6 +172,72 @@ async def foxfloe(port):
     c = await Client.open(port, "c")
     s = await c.state(lambda m: len(m["racers"]) == 3)
     assert not next(r for r in s["racers"] if r["n"] == "c")["in"]
+    await fox_weapons(port, a, b, c)
+
+
+def admin(port, path, header=True):
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/admin/{path}", headers={"X-Rig-Admin": "1"} if header else {})
+    with urllib.request.urlopen(req, timeout=3) as r:
+        return json.loads(r.read())
+
+
+async def fox_weapons(port, a, b, c):
+    ids = {r["n"]: r["id"] for r in (await a.state())["racers"]}
+    assert (await a.state())["host"] == ids["a"]
+    await b.send({"t": "host", "cmd": "goal", "m": 500})
+    await b.send({"t": "char", "c": "shadow"})
+    s = await a.state(lambda m: next(r for r in m["racers"] if r["n"] == "b")["ch"] == "shadow")
+    assert s["goal"] == 1500, "only the host sets the goal"
+    await a.send({"t": "host", "cmd": "goal", "m": 123})
+    await a.send({"t": "host", "cmd": "goal", "m": 500})
+    await a.state(lambda m: m["goal"] == 500)
+    await a.send({"t": "start"})
+    s = await a.state(lambda m: m["phase"] == "racing", 6)
+    assert next(r for r in s["racers"] if r["n"] == "b")["w"] == "mine", "shadow starts armed"
+    assert all(r["in"] for r in s["racers"]), s
+    await b.send({"t": "pos", "d": 50, "x": 0, "v": 10})
+    await b.send({"t": "fire"})
+    placed = await a.until(lambda m: m.get("t") == "fx" and m["k"] == "mine")
+    await a.send({"t": "pos", "d": 40, "x": 0, "v": 10})
+    await a.send({"t": "pos", "d": 60, "x": 0, "v": 10})
+    boom = await a.until(lambda m: m.get("t") == "fx" and m["k"] == "boom")
+    assert boom["id"] == placed["id"] and boom["to"] == ids["a"] and boom["by"] == ids["b"], boom
+    await a.send({"t": "fire"})
+    s = await b.state(lambda m: next(r for r in m["racers"] if r["n"] == "b")["pts"] >= 40)
+    await a.send({"t": "crate", "id": 3})
+    await a.send({"t": "crate", "id": 3})
+    s = await a.state(lambda m: next(r for r in m["racers"] if r["n"] == "a")["w"])
+    weapon = next(r for r in s["racers"] if r["n"] == "a")["w"]
+    assert weapon in ("snow", "mine", "seeker", "frost"), weapon
+    await b.send({"t": "pos", "d": 80, "x": 0, "v": 10})
+    await a.send({"t": "pos", "d": 70, "x": 0, "v": 10})
+    await a.send({"t": "fire"})
+    fx = await b.until(lambda m: m.get("t") == "fx" and m["k"] == weapon and m["by"] == ids["a"])
+    if weapon in ("snow", "seeker"):
+        assert fx["to"] == ids["b"], fx
+    if weapon == "frost":
+        assert ids["b"] in fx["tos"], fx
+    # operator channel: loopback plus the header, nothing else
+    for path, header in (("players", False),):
+        try:
+            admin(port, path, header)
+            raise AssertionError("admin without header")
+        except urllib.error.HTTPError as e:
+            assert e.code == 403
+    assert {p["name"] for p in admin(port, "players")["players"]} == {"a", "b", "c"}
+    assert admin(port, "lock?on=1")["locked"] and json.loads(get(port, "/info")[1])["locked"]
+    admin(port, "lock?on=0")
+    assert admin(port, "stop")["ok"]
+    s = await a.state(lambda m: m["phase"] == "lobby")
+    assert not any(r["in"] for r in s["racers"])
+    assert admin(port, f"kick?id={ids['c']}")["ok"]
+    assert (await c.until(lambda m: m.get("t") == "kicked"))["t"] == "kicked"
+    await a.state(lambda m: len(m["racers"]) == 2)
+    try:
+        admin(port, "nope")
+        raise AssertionError("unknown admin command")
+    except urllib.error.HTTPError as e:
+        assert e.code == 404
 
 async def main():
     games = {"tictactoe": tictactoe, "connect4": connect4, "pong": pong, "snake": snake, "draw": draw, "foxfloe": foxfloe}

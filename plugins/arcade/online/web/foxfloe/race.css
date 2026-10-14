@@ -74,3 +74,25 @@ body.drafting #screen { filter: saturate(1.25) contrast(1.05); }
 .p-btns { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
 .btn.ghost { background: transparent; color: var(--r-text); border: 1px solid var(--r-line); }
 @media (max-width: 640px) { #racePlace { font-size: 44px; top: 56px; } #raceTrack { width: 70vw; bottom: auto; top: 110px; } }
+
+#raceChars { display: flex; gap: 4px; margin: 2px 0 8px; }
+#raceChars .char { flex: 1; min-width: 0; padding: 5px 0 3px; border: 1px solid var(--r-line); border-radius: 9px; background: transparent; color: var(--r-muted); cursor: pointer; font: 10px system-ui, sans-serif; display: grid; justify-items: center; gap: 2px; }
+#raceChars .char i { width: 18px; height: 18px; border-radius: 50%; background: var(--fur); border: 2px solid rgba(255, 255, 255, .55); }
+#raceChars .char.sel { border-color: var(--r-accent); color: var(--r-text); background: rgba(255, 200, 87, .12); }
+#raceHost { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+#raceHost .hb { border: 1px solid var(--r-line); background: transparent; color: var(--r-text); border-radius: 99px; padding: 2px 9px; font: 11px system-ui, sans-serif; cursor: pointer; }
+#raceHost .hb.on { border-color: var(--r-accent); color: var(--r-accent); }
+#raceHost .hb.danger { border-color: #ff6b81; color: #ff6b81; }
+#race .kick { margin-left: 6px; border: 0; background: transparent; color: #ff6b81; cursor: pointer; font-size: 12px; padding: 0 2px; opacity: .55; }
+#race .kick:hover { opacity: 1; }
+#weapon {
+  position: fixed; right: 18px; bottom: 54px; z-index: 13; min-width: 120px; padding: 10px 16px; border-radius: 14px;
+  border: 2px solid var(--r-accent); background: rgba(10, 20, 30, .78); color: #fff; cursor: pointer;
+  display: grid; gap: 2px; justify-items: center; animation: armed 1.1s ease-in-out infinite; touch-action: manipulation;
+}
+#weapon b { font: 700 16px system-ui, sans-serif; letter-spacing: .02em; }
+#weapon small { font: 11px system-ui, sans-serif; color: var(--r-muted); }
+#weapon[data-w=snow] { border-color: #fff; } #weapon[data-w=mine] { border-color: #ff5a4d; }
+#weapon[data-w=seeker] { border-color: #ff6b81; } #weapon[data-w=frost] { border-color: #8fdcff; }
+@keyframes armed { 50% { transform: scale(1.06); } }
+#weapon[hidden], #raceChars[hidden], #raceHost[hidden] { display: none; }

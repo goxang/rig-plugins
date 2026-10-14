@@ -26,6 +26,7 @@ class Game:
     def leave(self, p): ...
     def msg(self, p, m): ...
     def step(self): ...
+    def admin(self, cmd, args): return None
 
 
 class Seated(Game):
@@ -605,43 +606,124 @@ class Draw(Game):
 
 class FoxRace(Game):
     """Everyone rows one shared river (same seed) to the finish line; points decide the podium.
-    The browser respawns a crashed boat and reports distance and points, the room keeps time, fish and places."""
+    The browser respawns a crashed boat and reports distance and points, the room keeps time, fish, places,
+    weapons and mines. The boat that is hit slows itself (its shield may absorb the hit), the room only scores."""
     tick = 0.1
-    GOAL = 1500
+    GOALS = (500, 1000, 1500, 2500, 4000)
     COUNTDOWN = 3.0
     GRACE = 30
     PODIUM = (600, 400, 250)
     LATE = 100
+    CHARS = ("rusty", "frost", "ember", "shadow", "lime")
+    START_WEAPON = {"shadow": "mine"}
+    # weapon: (slow ms, points for the shooter)
+    WEAPONS = {"snow": (1800, 25), "mine": (2600, 40), "seeker": (2200, 35), "frost": (1500, 15)}
+    SNOW_RANGE, SNOW_LANE, MINE_LANE, MINE_LIFE, FROST_RANGE = 45, 1.6, 1.5, 45, 28
 
     def __init__(self, room):
         super().__init__(room)
+        self.goal, self.weapons_on = 1500, True
         self.phase, self.at, self.seed, self.racers, self.taken = "lobby", 0.0, 0, {}, set()
+        self.mines, self.mine_seq = [], 0
 
     def join(self, p):
-        self.racers[p.id] = {"n": p.name, "d": 0, "x": 0, "v": 0, "s": 0, "f": None, "fb": 0, "in": False}
+        self.racers[p.id] = {"n": p.name, "d": 0, "x": 0, "v": 0, "s": 0, "f": None, "fb": 0, "hb": 0, "in": False,
+                             "ch": "rusty", "w": None, "pd": 0, "got": set()}
 
     def leave(self, p):
         self.racers.pop(p.id, None)
+        self.mines = [m for m in self.mines if m["by"] != p.id]
+
+    def begin(self):
+        for q in self.racers.values():
+            q.update({"d": 0, "x": 0, "v": 0, "s": 0, "f": None, "fb": 0, "hb": 0, "in": True, "pd": 0,
+                      "w": self.START_WEAPON.get(q["ch"]) if self.weapons_on else None, "got": set()})
+        self.taken.clear()
+        self.mines.clear()
+        self.seed = random.randrange(2 ** 31)
+        self.phase, self.at = "countdown", time.time() + self.COUNTDOWN
+
+    def admin(self, cmd, args):
+        if cmd == "stop":
+            if self.phase not in ("countdown", "racing"):
+                return {"ok": False}
+            self.phase, self.mines = "lobby", []
+            for q in self.racers.values():
+                q.update({"in": False, "w": None, "f": None})
+            self.room.broadcast({"t": "note", "text": "the host stopped the race"})
+            return {"ok": True}
+        if cmd == "start":
+            if self.phase in ("lobby", "done") and self.racers:
+                self.begin()
+                return {"ok": True}
+            return {"ok": False}
+        if cmd == "goal" and self.phase in ("lobby", "done"):
+            try:
+                goal = int(args.get("m"))
+            except (TypeError, ValueError):
+                return {"ok": False}
+            if goal in self.GOALS:
+                self.goal = goal
+                return {"goal": goal}
+            return {"ok": False}
+        if cmd == "weapons":
+            self.weapons_on = str(args.get("on", "1")) not in ("0", "false")
+            return {"weapons": self.weapons_on}
+        return None
+
+    def hit(self, by, victim, kind):
+        ms, pts = self.WEAPONS[kind]
+        self.racers[by]["hb"] += pts
+        return ms
+
+    def fire(self, p, r):
+        kind = r["w"]
+        if kind not in self.WEAPONS:
+            return
+        r["w"] = None
+        ms = self.WEAPONS[kind][0]
+        ahead = sorted(((q["d"] - r["d"], i) for i, q in self.racers.items()
+                        if i != p.id and q["in"] and q["f"] is None and q["d"] > r["d"]))
+        fx = {"t": "fx", "k": kind, "by": p.id, "d": round(r["d"], 1), "x": round(r["x"], 1), "ms": ms}
+        if kind == "snow":
+            hit = next((i for gap, i in ahead if gap <= self.SNOW_RANGE and abs(self.racers[i]["x"] - r["x"]) < self.SNOW_LANE), None)
+            fx.update(to=hit, d1=round(r["d"] + (self.racers[hit]["d"] - r["d"] if hit else self.SNOW_RANGE), 1),
+                      x1=round(self.racers[hit]["x"] if hit else r["x"], 1))
+        elif kind == "seeker":
+            hit = ahead[0][1] if ahead else None
+            fx.update(to=hit, d1=round(self.racers[hit]["d"] if hit else r["d"] + self.SNOW_RANGE, 1),
+                      x1=round(self.racers[hit]["x"] if hit else r["x"], 1))
+        elif kind == "mine":
+            self.mine_seq += 1
+            self.mines.append({"id": self.mine_seq, "d": r["d"], "x": r["x"], "by": p.id, "t": time.time()})
+            fx["id"] = self.mine_seq
+        else:
+            hits = [i for i, q in self.racers.items() if i != p.id and q["in"] and q["f"] is None
+                    and abs(q["d"] - r["d"]) <= self.FROST_RANGE]
+            fx["tos"] = hits
+            for i in hits:
+                self.hit(p.id, i, kind)
+        if fx.get("to") is not None:
+            self.hit(p.id, fx["to"], kind)
+        self.room.broadcast(fx)
 
     def msg(self, p, m):
         r = self.racers.get(p.id)
         if r is None:
             return
         t = m.get("t")
-        if t == "start" and self.phase in ("lobby", "done"):
-            for q in self.racers.values():
-                q.update({"d": 0, "x": 0, "v": 0, "s": 0, "f": None, "fb": 0, "in": True})
-            self.taken.clear()
-            self.seed = random.randrange(2 ** 31)
-            self.phase, self.at = "countdown", time.time() + self.COUNTDOWN
+        if t == "char" and self.phase in ("lobby", "done") and m.get("c") in self.CHARS:
+            r["ch"] = m["c"]
+        elif t == "start" and self.phase in ("lobby", "done"):
+            self.begin()
         elif self.phase != "racing" or not r["in"] or r["f"] is not None:
             return
         elif t == "pos":
-            r["d"] = num(m.get("d"), r["d"], self.GOAL, r["d"])
+            r["pd"], r["d"] = r["d"], num(m.get("d"), r["d"], self.goal, r["d"])
             r["x"] = num(m.get("x"), -8, 8, 0)
             r["v"] = num(m.get("v"), 0, 60, 0)
             r["s"] = int(num(m.get("s"), 0, 10 ** 6, r["s"]))
-            if r["d"] >= self.GOAL:
+            if r["d"] >= self.goal:
                 place = sum(q["f"] is not None for q in self.racers.values())
                 r["f"], r["v"] = round(time.time() - self.at, 2), 0
                 r["fb"] = self.PODIUM[place] if place < len(self.PODIUM) else self.LATE
@@ -650,20 +732,46 @@ class FoxRace(Game):
             if fish is not None and fish not in self.taken:
                 self.taken.add(fish)
                 self.room.broadcast({"t": "took", "id": fish, "by": p.id})
+        elif t == "crate" and self.weapons_on:
+            crate = integer(m.get("id"), 0, 10 ** 6)
+            if crate is not None and crate not in r["got"] and r["w"] is None:
+                r["got"].add(crate)
+                r["w"] = random.choice(tuple(self.WEAPONS))
+        elif t == "fire" and self.weapons_on:
+            self.fire(p, r)
+
+    def trip_mines(self, now):
+        left = []
+        for mine in self.mines:
+            victim = next((i for i, q in self.racers.items() if i != mine["by"] and q["in"] and q["f"] is None
+                           and q["pd"] - 0.5 <= mine["d"] <= q["d"] + 0.5 and abs(q["x"] - mine["x"]) < self.MINE_LANE), None)
+            if victim is not None:
+                ms = self.hit(mine["by"], victim, "mine") if mine["by"] in self.racers else self.WEAPONS["mine"][0]
+                self.room.broadcast({"t": "fx", "k": "boom", "id": mine["id"], "to": victim, "by": mine["by"], "ms": ms})
+            elif now - mine["t"] < self.MINE_LIFE:
+                left.append(mine)
+            else:
+                self.room.broadcast({"t": "fx", "k": "boom", "id": mine["id"], "to": None, "by": mine["by"], "ms": 0})
+        self.mines = left
 
     def step(self):
         now = time.time()
         if self.phase == "countdown" and now >= self.at:
             self.phase = "racing"
         elif self.phase == "racing":
+            self.trip_mines(now)
             field = [r for r in self.racers.values() if r["in"]]
             times = [r["f"] for r in field if r["f"] is not None]
             if not field or len(times) == len(field) or (times and now - self.at - min(times) > self.GRACE):
                 self.phase = "done"
-        self.room.broadcast({"t": "state", "phase": self.phase, "goal": self.GOAL, "seed": self.seed,
+                self.mines.clear()
+        self.room.broadcast({"t": "state", "phase": self.phase, "goal": self.goal, "seed": self.seed,
+                             "host": self.room.host_id(), "locked": self.room.locked, "weapons": self.weapons_on,
                              "left": round(max(0.0, self.at - now), 2) if self.phase == "countdown" else 0,
                              "clock": round(now - self.at, 1) if self.phase == "racing" else 0,
-                             "racers": [{"id": i, **r, "pts": r["s"] + r["fb"]} for i, r in self.racers.items()]})
+                             "racers": [{"id": i, **{k: v for k, v in r.items() if k not in ("pd", "got")},
+                                         "pts": r["s"] + r["fb"] + r["hb"]} for i, r in self.racers.items()]})
+
 
 CATALOG = {
     "snake": {"cls": Snake, "title": "Snake.io", "cap": 16, "icon": "S",
@@ -675,7 +783,7 @@ CATALOG = {
     "connect4": {"cls": ConnectFour, "title": "Connect Four", "cap": 20, "icon": "C",
                  "blurb": "drop discs, line up four - 2 players + audience"},
     "foxfloe": {"cls": FoxRace, "title": "Fox & Floe", "cap": 16, "icon": "F",
-                "blurb": "3D race down one shared river: slipstream, overtake, steal fish - 2 to 16"},
+                "blurb": "3D river race: pick a fox, grab crates, snowballs, mines and seekers - 2 to 16"},
     "pong": {"cls": Pong, "title": "Pong", "cap": 20, "icon": "P",
              "blurb": "first to 7 wins - 2 players + audience"},
 }

@@ -94,6 +94,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   <div id="raceCount" aria-hidden="true"></div>
   <div id="racePlace" hidden></div>
   <div id="raceTrack" hidden><b class="t-flag"></b></div>
+  <button id="weapon" hidden><b></b><small>F or tap</small></button>
   <div id="podium" class="modal" hidden>
     <div class="card">
       <h2 id="podiumTitle"></h2>
@@ -104,7 +105,9 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   </div>
   <aside id="race">
     <div class="race-head"><b id="room"></b><button class="pill" id="who" title="Change name"></button><span class="pill bad" id="conn">connecting…</span></div>
+    <div id="raceChars" hidden></div>
     <div id="raceList"></div>
+    <div id="raceHost" hidden></div>
     <p id="raceStatus"></p>
     <button class="btn" id="raceStart">start race</button>
   </aside>
