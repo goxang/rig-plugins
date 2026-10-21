@@ -9,6 +9,7 @@ import (
 	"github.com/goxang/rig-plugins/adapters/runtime/kubernetes"
 	"github.com/goxang/rig/contracts"
 	"github.com/goxang/rig/core"
+	"github.com/goxang/rig/host"
 	"github.com/goxang/rig/plugin"
 	"github.com/goxang/rig/protocol"
 )
@@ -66,5 +67,30 @@ func TestImportersReturnFragments(t *testing.T) {
 	}
 	if frag, err = importers["rig"]["rig"].run(rig, dir); err != nil || frag["version"] != nil || frag["project"] != "x" {
 		t.Fatalf("rig fragment %v %v", frag, err)
+	}
+}
+
+func TestInstalledManifestsKeepTheirFragments(t *testing.T) {
+	frag, err := fragment([]byte("views: {}\ntemplates: {po: {instructions: x}}\nui: {lock: true}\n"))
+	if err != nil || frag["templates"] == nil || frag["ui"] == nil || frag["views"] != nil {
+		t.Fatalf("fragment: %v %v", frag, err)
+	}
+	dir := t.TempDir()
+	if err := install(dir, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range names() {
+		file := filepath.Join(dir, n, "rig-plugin.yaml")
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := host.ParseManifest(raw, file)
+		if err != nil {
+			t.Fatalf("%s: %v", n, err)
+		}
+		if len(m.Warnings) > 0 {
+			t.Errorf("%s: %v", n, m.Warnings)
+		}
 	}
 }

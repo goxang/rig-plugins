@@ -147,14 +147,25 @@ func install(dir string, relative bool) error {
 			}
 			m.Importers[in] = host.ImporterDecl{Files: im.files}
 		}
+		var frag map[string]any
 		if o, err := overlays.ReadFile("manifests/" + n + ".yaml"); err == nil {
 			if err := yaml.Unmarshal(o, &m); err != nil {
+				return fmt.Errorf("manifests/%s.yaml: %w", n, err)
+			}
+			if frag, err = fragment(o); err != nil {
 				return fmt.Errorf("manifests/%s.yaml: %w", n, err)
 			}
 		}
 		b, err := yaml.Marshal(m)
 		if err != nil {
 			return err
+		}
+		if len(frag) > 0 {
+			more, err := yaml.Marshal(frag)
+			if err != nil {
+				return err
+			}
+			b = append(b, more...)
 		}
 		if err := os.MkdirAll(filepath.Join(dir, n), 0o755); err != nil {
 			return err
@@ -291,4 +302,20 @@ func (l *lines) Flush() {
 type served struct {
 	kind  core.Kind
 	probe any
+}
+
+// fragment is what an overlay gives the project as defaults (agent templates, policy roles, a ui
+// profile): rig reads these keys from the manifest itself, so they pass through as written.
+func fragment(overlay []byte) (map[string]any, error) {
+	var all map[string]any
+	if err := yaml.Unmarshal(overlay, &all); err != nil {
+		return nil, err
+	}
+	out := map[string]any{}
+	for _, k := range []string{"tasks", "queries", "dashboards", "alerts", "reports", "tests", "agents", "templates", "defaults", "policy", "ai", "ui"} {
+		if v, ok := all[k]; ok {
+			out[k] = v
+		}
+	}
+	return out, nil
 }
