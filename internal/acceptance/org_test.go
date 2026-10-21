@@ -126,6 +126,9 @@ func TestOrgFlow(t *testing.T) {
 	if _, err := hr.Query(ctx, "org.unit.kpis", nil); !denied(err) {
 		t.Errorf("HR read delivery KPIs: %v", err)
 	}
+	if _, err := parent.Query(ctx, "org.unit.kpis", protocol.Args{"child": "anything"}); !denied(err) {
+		t.Errorf("the parent token drilled below this unit: %v", err)
+	}
 	if _, err := hr.Query(ctx, "org.unit.people", nil); err != nil {
 		t.Errorf("HR cannot read people figures: %v", err)
 	}

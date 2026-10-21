@@ -33,6 +33,8 @@ type Config struct {
 	Escalate string `json:"escalate"`
 	// Cache is how long a child's answer is kept (default 60s); a child that is down shows its last one.
 	Cache string `json:"cache"`
+	// Drill lists the roles that may read a child's own figures through this unit; a local caller always may.
+	Drill []string `json:"drill"`
 }
 
 // Feed turns rows of a local source (incidents, risks in the tracker) into items.

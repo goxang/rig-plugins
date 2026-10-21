@@ -29,6 +29,7 @@ type node struct {
 	}
 	emit   func(topic string, data map[string]any)
 	caller string
+	roles  []string
 	now    time.Time
 }
 
@@ -51,7 +52,7 @@ func open(c *sdk.Ctx) (*node, error) {
 		return nil, err
 	}
 	return &node{
-		ctx: c, cfg: cfg, state: ctxState{c}, caller: c.Call.User, now: time.Now(),
+		ctx: c, cfg: cfg, state: ctxState{c}, caller: c.Call.User, roles: c.Call.Roles, now: time.Now(),
 		query: func(source string, args map[string]any) (*protocol.Frame, error) {
 			f, err := c.Query(source, args)
 			if err != nil {
@@ -308,11 +309,27 @@ func (n *node) childNames() []string {
 
 // childFrame is a child's own answer to source, for drilling one level down.
 func (n *node) childFrame(name, source string, args protocol.Args) (*sdk.Frame, error) {
+	if !n.mayDrill() {
+		return nil, &sdk.Error{Code: sdk.CodeDenied, Message: n.caller + " may not read below " + n.cfg.Unit + " (org.drill)"}
+	}
 	f, err := n.child(name, source, args)
 	if err != nil {
 		return nil, err
 	}
 	return convert[sdk.Frame](f), nil
+}
+
+// mayDrill keeps a unit above to what this one reports: a remote caller reads a child's own figures only with a role in drill.
+func (n *node) mayDrill() bool {
+	if len(n.roles) == 0 {
+		return true
+	}
+	for _, r := range n.roles {
+		if r == "owner" || slices.Contains(n.cfg.Drill, r) {
+			return true
+		}
+	}
+	return false
 }
 
 func unix(v any) time.Time {

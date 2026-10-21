@@ -82,8 +82,8 @@ github.com/google/go-containerregistry v0.20.3 h1:oNx7IdTI936V8CQRveCjaxOiegWwvM
 github.com/google/go-containerregistry v0.20.3/go.mod h1:w00pIgBRDVUDFM6bq+Qx8lwNWK+cxgCuX1vd3PIBDNI=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/goxang/rig v0.35.1 h1:Oh8yckVsnUqIAotDsKbIwIxvhB7kio78qszwJCrdgEE=
-github.com/goxang/rig v0.35.1/go.mod h1:JPJd+oIkKdqsMxOQF5VTf8uaI43wwvVGnDcreA/1X00=
+github.com/goxang/rig v0.36.0 h1:G0YVhABws8ligyG3bRaoSmbaTPP7XCbzbrz1fw184fM=
+github.com/goxang/rig v0.36.0/go.mod h1:JPJd+oIkKdqsMxOQF5VTf8uaI43wwvVGnDcreA/1X00=
 github.com/goxang/rig/sdk v0.0.0-20261021143902-5ea8b2908d56 h1:k3PkoDtgL4MZAG7gGTYlw9krmi8WM2r59N/OXUsk5VI=
 github.com/goxang/rig/sdk v0.0.0-20261021143902-5ea8b2908d56/go.mod h1:SYKt8kU6Tqt4WeN9iEmbaF0EwddnAtyISU93hNzq2Hw=
 github.com/goxang/scrub v1.1.1 h1:Julj55KjYslNYaXcqG8GJ9C+oW3e9JmzVCNgdxi94yc=

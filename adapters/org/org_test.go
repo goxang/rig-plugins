@@ -122,3 +122,20 @@ func TestRequestsAndItems(t *testing.T) {
 		t.Errorf("a closed item is still listed: %+v", its)
 	}
 }
+
+func TestMayDrill(t *testing.T) {
+	n, _ := testNode(&Config{Unit: "shaparak-software", Drill: []string{"executive"}}, nil)
+	for roles, want := range map[string]bool{"": true, "owner": true, "executive": true, "parent": false, "hr": false} {
+		n.roles = nil
+		if roles != "" {
+			n.roles = []string{roles}
+		}
+		if got := n.mayDrill(); got != want {
+			t.Errorf("roles %q may drill = %v", roles, got)
+		}
+	}
+	n.roles = []string{"parent"}
+	if _, err := n.childFrame("switch", "unit.kpis", nil); err == nil {
+		t.Error("a parent read a child's figures")
+	}
+}

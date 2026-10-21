@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-containerregistry v0.20.3
-	github.com/goxang/rig v0.35.1
+	github.com/goxang/rig v0.36.0
 	github.com/goxang/rig/sdk v0.0.0-20261021143902-5ea8b2908d56
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/microsoft/go-mssqldb v1.9.5

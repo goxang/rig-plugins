@@ -12,6 +12,7 @@ config:
   children: {type: object, description: "name: {url, token, env, fingerprint}: the units below, each a rig serve"}
   escalate: {type: string, description: "lowest severity of a child's item shown here (default high)"}
   cache: {type: string, description: "how long a child's answer is kept (default 1m)"}
+  drill: {type: array, description: "roles of a remote caller that may read a child's own figures through this unit (child=); by default a unit above sees this unit's roll-up only"}
 # KPIs come from any source of the project, so org reads through the host.
 permissions: {uses: ["*"]}
 views:
