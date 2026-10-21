@@ -1,0 +1,62 @@
+description: "HR: headcount against plan per unit, people figures the units report (never per person), hiring by stage and trainings"
+permissions: {uses: ["org.unit.*"]}
+views:
+  Workforce: {slot: tab, title: Workforce}
+  Figures:
+    slot: tab
+    widget: table
+    title: Figures
+    description: People figures the units report
+    source: org-people.figures
+    refresh: 5m
+  Hiring:
+    slot: tab
+    grid:
+      - - {widget: board, title: Positions, source: org-people.positions, by: stage, card: title, meta: [team, level, due], refresh: 60s, width: 70%,
+           actions: [{key: m, name: move, action: org-people.position, args: {id: '${row.id}', stage: '${pick:stage}'}}]}
+        - {widget: form, title: New position, action: org-people.position, submit: Open}
+  Plans:
+    slot: tab
+    grid:
+      - - {widget: table, title: Headcount plans, source: org-people.plans, refresh: 5m, width: 60%,
+           actions: [{key: x, name: delete, action: org-people.plan, args: {id: '${row.id}', delete: true}}]}
+        - {widget: form, title: Plan a quarter, action: org-people.plan, submit: Save}
+  Training:
+    slot: tab
+    grid:
+      - - {widget: table, title: Trainings, source: org-people.trainings, refresh: 5m, width: 60%,
+           actions: [{key: s, name: status, action: org-people.training, args: {id: '${row.id}', status: '${pick:status}'}}]}
+        - {widget: form, title: New training, action: org-people.training, submit: Add}
+  Requests:
+    slot: tab
+    grid:
+      - - {widget: table, title: Requests, source: org.unit.requests, refresh: 60s, width: 65%, columns: {created: {hide: true}}}
+        - {widget: form, title: Ask a unit, action: org.unit.request, submit: Send}
+ui:
+  title: People
+  tabs: [Workforce, Figures, Hiring, Plans, Training, Requests]
+  system: [inbox]
+  lock: true
+templates:
+  workforce-analyst:
+    on: {schedule: "0 9 1 * *"}
+    instructions: |
+      Read org-people.headcount and org-people.figures. For each unit with a gap or a load off target,
+      say what it means for delivery in one line with the numbers, and propose a position
+      (org-people.position, stage requested) where the plan supports one. Never name a person.
+    tools: ["*:read", "org-people.position"]
+    approve: ["org-people.*"]
+  recruiter:
+    on: {schedule: "0 9 * * 1"}
+    instructions: |
+      For each approved position without movement for two weeks, ask the hiring unit what blocks it
+      (org.unit.request) and summarise the hiring board in a highlight item (org.unit.item).
+    tools: ["*:read", "org.unit.request", "org.unit.item"]
+    approve: ["org.unit.*"]
+  workforce-planner:
+    on: {schedule: "0 9 15 */3 *"}
+    instructions: |
+      Draft next quarter's headcount plans (org-people.plan) per unit from its load, open positions and
+      the product office's initiatives in next and now. State the assumption behind each number.
+    tools: ["*:read", "org-people.plan"]
+    approve: ["org-people.*"]

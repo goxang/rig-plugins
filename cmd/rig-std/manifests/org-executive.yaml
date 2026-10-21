@@ -1,0 +1,64 @@
+description: "the executive: the company in four figures, objectives and key results measured live from the units' KPIs, decisions waiting, escalated risks and briefings"
+permissions: {uses: ["org.unit.*"]}
+views:
+  Company: {slot: tab, title: Company}
+  OKRs:
+    slot: tab
+    tabs:
+      Progress:
+        widget: table
+        title: Key results, live
+        source: org-executive.okrs
+        refresh: 5m
+      Objectives:
+        grid:
+          - - {widget: table, title: Objectives, source: org-executive.objectives, refresh: 5m, width: 60%,
+               actions: [{key: s, name: status, action: org-executive.objective, args: {id: '${row.id}', status: '${pick:status}'}}]}
+            - {widget: form, title: New objective, action: org-executive.objective, submit: Add}
+      Key results:
+        grid:
+          - - {widget: table, title: Key results, source: org-executive.keyresults, refresh: 5m, width: 60%,
+               actions: [{key: x, name: delete, action: org-executive.keyresult, args: {id: '${row.id}', delete: true}}]}
+            - {widget: form, title: New key result, action: org-executive.keyresult, submit: Add}
+  Decisions:
+    slot: tab
+    grid:
+      - - {widget: table, title: Waiting for a decision, source: org-executive.agenda, refresh: 60s, width: 60%,
+           actions: [{key: d, name: decide, action: org-executive.decision, args: {id: '${row.id}', status: decided, decision: '${ask:decision}'}}]}
+        - {widget: form, title: New decision, action: org-executive.decision, submit: Add}
+      - - {widget: table, title: All decisions, source: org-executive.decisions, refresh: 5m}
+  Risks:
+    slot: tab
+    widget: table
+    title: Risks
+    description: High and critical, as the units report them
+    source: org-executive.risks
+    refresh: 60s
+  Briefings:
+    slot: tab
+    grid:
+      - - {widget: table, title: Briefings, source: org-executive.briefings, refresh: 5m, width: 60%}
+        - {widget: form, title: New briefing, action: org-executive.briefing, submit: Save}
+ui:
+  title: Executive
+  tabs: [Company, OKRs, Decisions, Risks, Briefings]
+  system: [inbox]
+  lock: true
+templates:
+  chief-of-staff:
+    on: {schedule: "0 7 * * 1"}
+    instructions: |
+      Write the executive's weekly briefing (org-executive.briefing, period the ISO week) in under 400
+      words: org-executive.scorecard and what moved since last week, key results behind schedule with the
+      unit and KPI behind each, critical items, and the decisions due this week with the options in one
+      line each. Numbers only from the sources; say where data is missing.
+    tools: ["*:read", "org-executive.briefing"]
+    approve: ["org-executive.*"]
+  decision-prep:
+    on: {schedule: "0 8 * * 1-5"}
+    instructions: |
+      For each open decision without options (org-executive.agenda), gather the facts from the units that
+      raised it (org.unit.items, org.unit.kpis) and write two or three options with their cost and risk
+      into the decision (org-executive.decision, options and context). Never decide.
+    tools: ["*:read", "org-executive.decision"]
+    approve: ["org-executive.*"]

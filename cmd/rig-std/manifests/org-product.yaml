@@ -1,0 +1,99 @@
+description: "the product office: portfolio scored RICE, intake from every unit and stakeholder, specs, releases, the teams' product metrics and a public roadmap"
+permissions: {uses: ["org.unit.*"]}
+views:
+  Overview: {slot: tab, title: Overview}
+  Intake:
+    slot: tab
+    grid:
+      - - {widget: table, title: Requests to the product office, source: org-product.intakes, refresh: 30s, width: 65%,
+           columns: {by: {hide: true}},
+           actions: [{key: p, name: promote to initiative, action: org-product.promote, args: {id: '${row.id}'}},
+                     {key: t, name: triage, action: org-product.intake, args: {id: '${row.id}', status: '${pick:status}', answer: '${ask:answer}'}}]}
+        - {widget: form, title: New request, action: org-product.submit, submit: Submit}
+  Portfolio:
+    slot: tab
+    tabs:
+      Board:
+        widget: board
+        source: org-product.initiatives
+        by: stage
+        card: title
+        meta: [team, score, due]
+        refresh: 60s
+        actions:
+          - {key: m, name: move, action: org-product.initiative, args: {id: '${row.id}', stage: '${pick:stage}'}}
+          - {key: s, name: score, action: org-product.initiative, args: {id: '${row.id}', reach: '${ask:reach}', impact: '${ask:impact}', confidence: '${ask:confidence}', effort: '${ask:effort}'}}
+          - {key: x, name: delete, action: org-product.initiative, args: {id: '${row.id}', delete: true}}
+      Ranked:
+        widget: table
+        title: Initiatives by RICE score
+        source: org-product.initiatives
+        refresh: 60s
+        columns: {problem: {hide: true}}
+      New:
+        widget: form
+        title: New initiative
+        action: org-product.initiative
+        submit: Add
+  Roadmap:
+    slot: tab
+    grid:
+      - - {widget: timeline, title: Roadmap by due date, source: org-product.roadmap, refresh: 5m}
+      - - {widget: timeline, title: What stakeholders see, source: org-product.public-roadmap, refresh: 5m}
+  Specs:
+    slot: tab
+    grid:
+      - - {widget: table, title: Specs, source: org-product.specs, refresh: 60s, width: 60%, columns: {body: {hide: true}},
+           actions: [{key: s, name: status, action: org-product.spec, args: {id: '${row.id}', status: '${pick:status}'}}]}
+        - {widget: form, title: New spec, action: org-product.spec, submit: Save}
+  Releases:
+    slot: tab
+    grid:
+      - - {widget: table, title: Releases, source: org-product.releases, refresh: 5m, width: 60%}
+        - {widget: form, title: New release, action: org-product.release, submit: Publish}
+  Metrics:
+    slot: tab
+    widget: table
+    title: Metrics
+    description: Product metrics the teams report
+    source: org-product.metrics
+    refresh: 5m
+ui:
+  title: Product office
+  tabs: [Overview, Intake, Portfolio, Roadmap, Specs, Releases, Metrics]
+  system: [inbox]
+  lock: true
+templates:
+  product-manager:
+    on: {schedule: "0 9 * * 1-5"}
+    instructions: |
+      You run the product office's intake. Read org-product.intakes with status new. For each, find the
+      initiative it belongs to (org-product.initiatives) or say it is new. Triage it (org-product.intake:
+      status triaged and an answer saying what happens next) or promote it (org-product.promote) when it
+      names a real problem with someone who has it. Score new initiatives (reach, impact, confidence,
+      effort) from the teams' metrics (org-product.metrics) and say where each number came from.
+    tools: ["*:read", "org-product.intake", "org-product.promote", "org-product.initiative"]
+    approve: ["org-product.*"]
+  spec-writer:
+    on: {schedule: "0 10 * * 1"}
+    instructions: |
+      For each initiative in stage next without a spec, write one (org-product.spec, status draft): the
+      problem and who has it, the users, scope and out of scope, acceptance criteria, the metric that
+      shows it worked and its target. Ask the building team what you cannot know (org.unit.request).
+    tools: ["*:read", "org-product.spec", "org.unit.request"]
+    approve: ["org-product.*", "org.unit.*"]
+  release-writer:
+    on: {schedule: "0 16 * * 4"}
+    instructions: |
+      Read the teams' highlights and closed items this week (org.unit.items) and the initiatives shipped.
+      Draft a release (org-product.release) per team in plain language for the people it changes things
+      for; set public only for what customers or partners notice.
+    tools: ["*:read", "org-product.release"]
+    approve: ["org-product.*"]
+  portfolio-analyst:
+    on: {schedule: "0 9 1 * *"}
+    instructions: |
+      Review the portfolio: initiatives by score, how many are in now against the teams' health, scores
+      that the metrics no longer support. Record your findings as one highlight item (org.unit.item).
+    tools: ["*:read", "org.unit.item"]
+    approve: ["org.unit.*"]

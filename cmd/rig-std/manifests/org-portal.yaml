@@ -1,0 +1,14 @@
+description: "the stakeholders' portal: a status page, the public roadmap, release notes and a way to ask the product office, each made of what the units expose to stakeholders"
+config:
+  pages: {type: object, description: "tab: [exposure names] (defaults Status: [service-status, payments-flow], Roadmap: [public-roadmap], Releases: [release-notes], Ask: [submit-request])"}
+permissions: {uses: ["org.unit.*"]}
+views:
+  Status: {slot: tab, title: Status}
+  Roadmap: {slot: tab, title: Roadmap}
+  Releases: {slot: tab, title: Releases}
+  Ask: {slot: tab, title: Ask}
+ui:
+  title: Stakeholders
+  tabs: [Status, Roadmap, Releases, Ask]
+  system: []
+  lock: true

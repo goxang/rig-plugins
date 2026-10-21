@@ -295,3 +295,100 @@ func Each(c querier, source string) []map[string]any {
 	wg.Wait()
 	return slices.Concat(per...)
 }
+
+// Health is a scorecard row per unit below: KPIs on target as the value, coloured by the worst sign.
+type Health struct {
+	Name         string  `json:"name"`
+	Title        string  `json:"title"`
+	Value        float64 `json:"value"`
+	Measure      string  `json:"measure"`
+	Status       string  `json:"status"`
+	OK           int     `json:"ok"`
+	Warn         int     `json:"warn"`
+	Err          int     `json:"err"`
+	High         int     `json:"high"`
+	OpenRequests int     `json:"open_requests"`
+	Note         string  `json:"note"`
+}
+
+func HealthOf(c querier) ([]Health, error) {
+	kids, err := Children(c)
+	if err != nil {
+		return nil, err
+	}
+	out := []Health{}
+	for _, k := range kids {
+		n := func(key string) int { v, _ := k[key].(float64); return int(v) }
+		h := Health{Name: Str(k["name"]), Title: first(Str(k["title"]), Str(k["name"])), Measure: "% KPIs on target",
+			OK: n("ok"), Warn: n("warn"), Err: n("err"), High: n("high"), OpenRequests: n("open_requests"), Status: "ok"}
+		if total := h.OK + h.Warn + h.Err; total > 0 {
+			h.Value = float64(100 * h.OK / total)
+		}
+		reachable, _ := k["reachable"].(bool)
+		switch {
+		case !reachable || h.Err > 0:
+			h.Status = "err"
+		case h.Warn > 0 || h.High > 0:
+			h.Status = "warn"
+		}
+		h.Note = fmt.Sprintf("%d ok · %d warn · %d err · %d high items · %d open requests", h.OK, h.Warn, h.Err, h.High, h.OpenRequests)
+		if e := Str(k["error"]); e != "" {
+			h.Note = e
+		}
+		out = append(out, h)
+	}
+	return out, nil
+}
+
+// Str reads a string from a row value.
+func Str(v any) string { s, _ := v.(string); return s }
+
+// Table is rows as a frame with cols in order; a column's type comes from its first non-empty value.
+func Table(rows []map[string]any, cols ...string) *sdk.Frame {
+	fields := make([]sdk.Field, len(cols))
+	for i, name := range cols {
+		typ := sdk.TypeString
+		for _, r := range rows {
+			if v, ok := r[name]; ok && v != nil {
+				switch v.(type) {
+				case float64, int:
+					typ = sdk.TypeNumber
+				case bool:
+					typ = sdk.TypeBool
+				case time.Time:
+					typ = sdk.TypeTime
+				case []any, map[string]any:
+					typ = sdk.TypeJSON
+				}
+				break
+			}
+		}
+		fields[i] = sdk.Col(name, typ)
+	}
+	f := sdk.NewFrame(fields...)
+	for _, r := range rows {
+		vals := make([]any, len(cols))
+		for i, name := range cols {
+			vals[i] = r[name]
+			if fields[i].Type == sdk.TypeString && r[name] != nil {
+				vals[i] = fmt.Sprint(r[name])
+			}
+		}
+		f.Append(vals...)
+	}
+	return f
+}
+
+// Num reads a number from a row value the way records and frames carry it.
+func Num(v any) float64 {
+	switch x := v.(type) {
+	case float64:
+		return x
+	case int:
+		return float64(x)
+	case string:
+		f, _ := strconv.ParseFloat(x, 64)
+		return f
+	}
+	return 0
+}

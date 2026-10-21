@@ -2,6 +2,8 @@ package main
 
 import (
 	"io/fs"
+	"path"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,7 +15,7 @@ import (
 )
 
 // TestOverlays checks each overlay names a plugin, decodes as a manifest, and that its views parse
-// and bind only to that plugin's own sources.
+// and bind only to that plugin's own sources or the ones it declares it uses.
 func TestOverlays(t *testing.T) {
 	files, _ := fs.Glob(overlays, "manifests/*.yaml")
 	for _, f := range files {
@@ -32,7 +34,10 @@ func TestOverlays(t *testing.T) {
 				t.Fatalf("%s view %s: %v", f, vn, err)
 			}
 			view.Walk(&v.Root, func(n *protocol.Node) {
-				if n.Bind != nil && !strings.HasPrefix(n.Bind.Source, name+".") {
+				if n.Bind != nil && !strings.HasPrefix(n.Bind.Source, name+".") && !slices.ContainsFunc(m.Permissions.Uses, func(u string) bool {
+					ok, _ := path.Match(u, n.Bind.Source)
+					return ok
+				}) {
 					t.Errorf("%s view %s: source %s is not %s's", f, vn, n.Bind.Source, name)
 				}
 			})

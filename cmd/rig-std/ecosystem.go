@@ -11,6 +11,7 @@ import (
 	"github.com/goxang/rig-plugins/adapters/flow"
 	"github.com/goxang/rig-plugins/adapters/iac/helm"
 	"github.com/goxang/rig-plugins/adapters/iac/terraform"
+	"github.com/goxang/rig-plugins/adapters/layers"
 	"github.com/goxang/rig-plugins/adapters/notify/slack"
 	"github.com/goxang/rig-plugins/adapters/org"
 	"github.com/goxang/rig-plugins/adapters/registry"
@@ -62,19 +63,25 @@ func affected(ctx context.Context, files []string) ([]string, error) {
 func init() {
 	plugins["aws"] = []served{{core.KindMetrics, (*aws.AWS)(nil)}, {core.KindLogs, (*aws.AWS)(nil)}}
 	maps.Copy(actions, map[string]func(*sdk.Plugin){
-		"git":           func(p *sdk.Plugin) { git.Register(p, source) },
-		"gitlab":        func(p *sdk.Plugin) { forge.RegisterSCM(p, gitlab.Open, affected) },
-		"github":        func(p *sdk.Plugin) { forge.RegisterSCM(p, github.Open, affected) },
-		"jira":          jira.Register,
-		"confluence":    confluence.Register,
-		"markdown-docs": markdown.Register,
-		"terraform":     terraform.Register,
-		"helm":          helm.Register,
-		"aws":           aws.Register,
-		"slack":         slack.Register,
-		"registry":      registry.Register,
-		"org":           org.Register,
-		"flow":          flow.Register,
+		"git":            func(p *sdk.Plugin) { git.Register(p, source) },
+		"gitlab":         func(p *sdk.Plugin) { forge.RegisterSCM(p, gitlab.Open, affected) },
+		"github":         func(p *sdk.Plugin) { forge.RegisterSCM(p, github.Open, affected) },
+		"jira":           jira.Register,
+		"confluence":     confluence.Register,
+		"markdown-docs":  markdown.Register,
+		"terraform":      terraform.Register,
+		"helm":           helm.Register,
+		"aws":            aws.Register,
+		"slack":          slack.Register,
+		"registry":       registry.Register,
+		"org":            org.Register,
+		"flow":           flow.Register,
+		"org-management": layers.Management,
+		"org-product":    layers.Product,
+		"org-technology": layers.Technology,
+		"org-people":     layers.People,
+		"org-executive":  layers.Executive,
+		"org-portal":     layers.Portal,
 	})
 	maps.Copy(importers, map[string]map[string]importer{
 		"gitlab":      {"gitlab-ci": {[]string{".gitlab-ci.yml"}, imp.GitLabCI}},

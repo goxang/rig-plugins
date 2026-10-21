@@ -1,0 +1,59 @@
+description: "layer 2, a department or middle manager: its teams' health, commitments to the units above, capacity, requests and what the teams expose live"
+permissions: {uses: ["org.unit.*"]}
+views:
+  Department: {slot: tab, title: Department}
+  Live: {slot: tab, title: Live}
+  Teams:
+    slot: tab
+    widget: table
+    title: Teams
+    description: Teams below, by their own KPIs
+    source: org-management.health
+    refresh: 60s
+    columns: {measure: {hide: true}}
+    preview: {widget: tiles, source: org.unit.kpis, args: {child: '${row.name}'}, width: 50%}
+    actions:
+      - {key: r, name: ask the team, action: org.unit.request, args: {to: '${row.name}', title: '${ask:title}', body: '${ask:body}'}}
+  Commitments:
+    slot: tab
+    grid:
+      - - {widget: board, title: Commitments, source: org-management.commitments, by: status, card: title, meta: [team, due, owner], refresh: 60s, width: 70%,
+           actions: [{key: m, name: move, action: org-management.commitment, args: {id: '${row.id}', status: '${pick:status}'}},
+                     {key: x, name: delete, action: org-management.commitment, args: {id: '${row.id}', delete: true}}]}
+        - {widget: form, title: New commitment, action: org-management.commitment, submit: Commit}
+  Capacity:
+    slot: tab
+    widget: table
+    title: Capacity
+    description: People figures the teams report (unit level, never per person)
+    source: org-management.capacity
+    refresh: 5m
+  Requests:
+    slot: tab
+    grid:
+      - - {widget: table, title: Requests from above and to the teams, source: org.unit.requests, refresh: 30s, width: 65%, columns: {created: {hide: true}},
+           actions: [{key: a, name: answer, action: org.unit.answer, args: {id: '${row.id}', status: '${pick:status}', answer: '${ask:answer}'}}]}
+        - {widget: form, title: Ask a team, action: org.unit.request, submit: Send}
+ui:
+  title: Department
+  tabs: [Department, Teams, Commitments, Capacity, Requests, Live]
+  system: [inbox]
+  lock: true
+templates:
+  delivery-manager:
+    on: {schedule: "0 8 * * 1-5"}
+    instructions: |
+      You run delivery for this department. Read org-management.health, org-management.commitments and
+      org.unit.items. For each commitment whose team turned warn or err, or whose due date is within two
+      weeks with the team's KPIs off target, set it at-risk with a one-line reason (org-management.commitment).
+      Ask the team what would bring it back (org.unit.request, to the team). Never mark anything done.
+    tools: ["*:read", "org-management.commitment", "org.unit.request"]
+    approve: ["org-management.*", "org.unit.*"]
+  department-review:
+    on: {schedule: "0 9 * * 5"}
+    instructions: |
+      Write the department's weekly review for the unit above: teams' health with the numbers behind each
+      warn or err, commitments moved, risks that are new or grew, and what the department needs from above.
+      Record it as one highlight item (org.unit.item kind highlight). Say plainly when data is missing.
+    tools: ["*:read", "org.unit.item"]
+    approve: ["org.unit.*"]

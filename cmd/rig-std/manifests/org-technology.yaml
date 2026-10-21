@@ -1,0 +1,73 @@
+description: "the IT deputy or CTO: a scorecard of every unit below, what they expose live, technology programs with budgets, architecture decisions, the radar and risks"
+permissions: {uses: ["org.unit.*"]}
+views:
+  Scorecard: {slot: tab, title: Scorecard}
+  Live: {slot: tab, title: Live}
+  Units:
+    slot: tab
+    widget: table
+    title: Units
+    description: Units below
+    source: org-technology.health
+    refresh: 60s
+    columns: {measure: {hide: true}}
+    preview: {widget: table, source: org.unit.items, args: {child: '${row.name}'}, width: 55%}
+    actions:
+      - {key: r, name: ask the unit, action: org.unit.request, args: {to: '${row.name}', title: '${ask:title}', body: '${ask:body}'}}
+  Programs:
+    slot: tab
+    grid:
+      - - {widget: table, title: Programs, source: org-technology.programs, refresh: 5m, width: 65%,
+           actions: [{key: s, name: status, action: org-technology.program, args: {id: '${row.id}', status: '${pick:status}'}},
+                     {key: b, name: spent, action: org-technology.program, args: {id: '${row.id}', spent: '${ask:spent}'}}]}
+        - {widget: form, title: New program, action: org-technology.program, submit: Add}
+  Architecture:
+    slot: tab
+    tabs:
+      Decisions:
+        grid:
+          - - {widget: table, title: Architecture decisions, source: org-technology.adrs, refresh: 5m, width: 60%,
+               actions: [{key: s, name: status, action: org-technology.adr, args: {id: '${row.id}', status: '${pick:status}'}}]}
+            - {widget: form, title: New ADR, action: org-technology.adr, submit: Propose}
+      Radar:
+        grid:
+          - - {widget: board, title: Technology radar, source: org-technology.radar, by: ring, card: name, meta: [quadrant, note], refresh: 5m, width: 70%,
+               actions: [{key: m, name: move, action: org-technology.radar, args: {id: '${row.id}', ring: '${pick:ring}'}}]}
+            - {widget: form, title: New blip, action: org-technology.radar, submit: Add}
+  Risks:
+    slot: tab
+    grid:
+      - - {widget: table, title: Risks by likelihood × impact, source: org-technology.risks, refresh: 5m, width: 65%,
+           actions: [{key: s, name: status, action: org-technology.risk, args: {id: '${row.id}', status: '${pick:status}'}}]}
+        - {widget: form, title: New risk, action: org-technology.risk, submit: Add}
+ui:
+  title: Technology
+  tabs: [Scorecard, Live, Units, Programs, Architecture, Risks]
+  system: [inbox]
+  lock: true
+templates:
+  cto-briefing:
+    on: {schedule: "0 8 * * 1"}
+    instructions: |
+      Brief the IT deputy for the week in under 300 words: org-technology.scorecard with the units behind
+      each warn or err, open incidents and what the units say about them (org.unit.items), programs at risk
+      or over budget, and the top three risks. End with the decisions the deputy has to take. Record it as
+      a highlight item (org.unit.item).
+    tools: ["*:read", "org.unit.item"]
+    approve: ["org.unit.*"]
+  risk-analyst:
+    on: {schedule: "0 9 * * 3"}
+    instructions: |
+      Turn what the units below report (org.unit.items: risks, blockers, incidents) into technology risks
+      (org-technology.risk) when they are shared by units or outlive a sprint; score likelihood and impact
+      1 to 5 with the reason, and propose a mitigation. Close risks whose cause is gone.
+    tools: ["*:read", "org-technology.risk"]
+    approve: ["org-technology.*"]
+  architecture-reviewer:
+    on: {schedule: "0 10 * * 2"}
+    instructions: |
+      Review proposed ADRs (org-technology.adrs, status proposed) against accepted ones and the radar: say
+      what each conflicts with, what it costs to run, and recommend accept or reject in the ADR's
+      consequences. Never change a status yourself.
+    tools: ["*:read", "org-technology.adr"]
+    approve: ["org-technology.*"]

@@ -170,7 +170,7 @@ func TestLayersExpose(t *testing.T) {
 		"unit": "shaparak-software", "layer": 2, "cache": "1s",
 		"children": map[string]any{"switch": map[string]any{"url": team.url, "token": parent.Token}},
 		"expose":   []any{map[string]any{"name": "payments-flow", "from": "switch/payments-flow"}},
-	}})
+	}, "org-management": map[string]any{}})
 	dept.serve(ctx, map[string]string{"deputy": "parent"})
 	deputyToken := dept.login(ctx, "deputy")
 	if _, err := deputyToken.Query(ctx, "org.unit.show", protocol.Args{"name": "payments-flow", "child": "switch"}); code(err) != protocol.CodeDenied {
@@ -183,11 +183,26 @@ func TestLayersExpose(t *testing.T) {
 	top := newUnit(t, rig, std, bin, "it-deputy", map[string]any{"org": map[string]any{
 		"unit": "it-deputy", "layer": 3,
 		"children": map[string]any{"shaparak-software": map[string]any{"url": dept.url, "token": deputyToken.Token}},
-	}})
+	}, "org-technology": map[string]any{}, "org-executive": map[string]any{}})
 	if out := top.rigOK(top.env, "--brief", "call", "org.unit.exposed", "child=*"); !strings.Contains(out, "payments-flow") || !strings.Contains(out, "Live payments") || strings.Contains(out, "report-incident") {
 		t.Errorf("two levels up, exposed:\n%s", out)
 	}
 	if out := top.rigOK(top.env, "--brief", "call", "org.unit.show", "name=payments-flow", "child=shaparak-software"); !strings.Contains(out, "dispatchersvc") || !strings.Contains(out, "true") {
 		t.Errorf("two levels up, payments-flow:\n%s", out)
+	}
+
+	// each layer reads the one below through org only
+	if out := dept.rigOK(dept.env, "--brief", "call", "org-management.health"); !strings.Contains(out, "switch") {
+		t.Errorf("department health:\n%s", out)
+	}
+	dept.rigOK(dept.env, "call", "org-management.commitment", "title=QR payments live", "team=switch", "status=at-risk")
+	if out := dept.rigOK(dept.env, "--brief", "call", "org-management.overview"); !strings.Contains(out, "At risk") {
+		t.Errorf("department overview:\n%s", out)
+	}
+	if out := top.rigOK(top.env, "--brief", "call", "org-technology.scorecard"); !strings.Contains(out, "Units in trouble") {
+		t.Errorf("technology scorecard:\n%s", out)
+	}
+	if out := top.rigOK(top.env, "--brief", "call", "org-technology.status"); !strings.Contains(out, "shaparak-software") && !strings.Contains(out, "operational") && !strings.Contains(out, "degraded") {
+		t.Errorf("service status:\n%s", out)
 	}
 }

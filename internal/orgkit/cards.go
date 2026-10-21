@@ -42,25 +42,25 @@ func Cards(c querier, child string, keep func(row map[string]any) bool) (*sdk.No
 
 // Card is one exposure row (org.unit.exposed) as a widget.
 func Card(r map[string]any) sdk.Node {
-	str := func(k string) string { s, _ := r[k].(string); return s }
-	title := first(str("title"), str("name"))
-	if o := first(str("origin"), str("unit")); o != "" {
+	get := func(k string) string { s, _ := r[k].(string); return s }
+	title := first(get("title"), get("name"))
+	if o := first(get("origin"), get("unit")); o != "" {
 		title += " · " + o
 	}
-	if e := str("error"); e != "" {
+	if e := get("error"); e != "" {
 		return sdk.Node{Widget: "markdown", Props: sdk.Args{"title": title, "text": "⚠ " + e}}
 	}
-	args := sdk.Args{"name": str("name")}
-	if u := str("unit"); u != "" {
+	args := sdk.Args{"name": get("name")}
+	if u := get("unit"); u != "" {
 		args["child"] = u
 	}
-	if str("kind") == "action" {
+	if get("kind") == "action" {
 		props, req := map[string]any{}, []any{}
 		inputs, _ := r["inputs"].([]any)
 		for _, x := range inputs {
 			in, _ := x.(map[string]any)
 			name := fmt.Sprint(in["name"])
-			p := map[string]any{"type": first(str2(in["type"]), "string"), "description": first(str2(in["title"]), str2(in["description"]))}
+			p := map[string]any{"type": first(Str(in["type"]), "string"), "description": first(Str(in["title"]), Str(in["description"]))}
 			if opts, ok := in["options"].([]any); ok && len(opts) > 0 {
 				p["enum"] = opts
 			}
@@ -69,11 +69,9 @@ func Card(r map[string]any) sdk.Node {
 			}
 			props[name] = p
 		}
-		return sdk.Node{Widget: "form", Props: sdk.Args{"title": title, "description": str("description"), "action": "org.unit.invoke", "args": args,
-			"schema": map[string]any{"type": "object", "properties": props, "required": req}, "submit": first(str("title"), "Run")}}
+		return sdk.Node{Widget: "form", Props: sdk.Args{"title": title, "description": get("description"), "action": "org.unit.invoke", "args": args,
+			"schema": map[string]any{"type": "object", "properties": props, "required": req}, "submit": first(get("title"), "Run")}}
 	}
-	return sdk.Node{Widget: first(str("widget"), "table"), Props: sdk.Args{"title": title, "description": str("description")},
-		Bind: &sdk.Binding{Source: "org.unit.show", Args: args, Every: str("refresh")}}
+	return sdk.Node{Widget: first(get("widget"), "table"), Props: sdk.Args{"title": title, "description": get("description")},
+		Bind: &sdk.Binding{Source: "org.unit.show", Args: args, Every: get("refresh")}}
 }
-
-func str2(v any) string { s, _ := v.(string); return s }
