@@ -97,7 +97,7 @@ func load(c *sdk.Ctx) (*Config, error) {
 }
 
 func Register(p *sdk.Plugin) {
-	p.Source("flow.graph", func(c *sdk.Ctx, _ sdk.Args) (*sdk.Frame, error) {
+	p.Source("graph", func(c *sdk.Ctx, _ sdk.Args) (*sdk.Frame, error) {
 		cfg, err := load(c)
 		if err != nil {
 			return nil, err
@@ -108,7 +108,7 @@ func Register(p *sdk.Plugin) {
 		}
 		return frames.Of(cfg.graph(read)), nil
 	}, sdk.Describe("the flow as a graph: edges (from, to) with rate, error % and latency, and nodes with their status"))
-	p.Source("flow.summary", func(c *sdk.Ctx, _ sdk.Args) (*sdk.Frame, error) {
+	p.Source("summary", func(c *sdk.Ctx, _ sdk.Args) (*sdk.Frame, error) {
 		cfg, err := load(c)
 		if err != nil {
 			return nil, err
