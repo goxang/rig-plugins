@@ -30,15 +30,17 @@ func TestOrgFlow(t *testing.T) {
 	if err := os.Rename(fake, filepath.Join(bin, "claude")); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile("../../plugins/pack-org/rig-plugin.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var pack struct {
+	pack := struct {
 		Templates map[string]any `yaml:"templates"`
-	}
-	if err := yaml.Unmarshal(raw, &pack); err != nil {
-		t.Fatal(err)
+	}{Templates: map[string]any{}}
+	for _, name := range []string{"org-team", "pack-org"} {
+		raw, err := os.ReadFile("../../plugins/" + name + "/rig-plugin.yaml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := yaml.Unmarshal(raw, &pack); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	newWorld := func(project string, org map[string]any, agents map[string]any) *world {

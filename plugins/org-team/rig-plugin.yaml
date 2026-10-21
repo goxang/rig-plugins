@@ -1,0 +1,62 @@
+name: org-team
+version: 1.0.0
+description: "layer 1, a team as a unit: its report to the unit above, requests, items, what it exposes, and a product owner and analyst as agents"
+publisher: goxang
+requires:
+  org: ^1
+# A team keeps every screen of its project; Team is one tab more.
+views:
+  Team:
+    slot: tab
+    modes: [product, software]
+    tabs:
+      Report:
+        grid:
+          - - {widget: tiles, title: What the unit above sees, source: org.unit.kpis, refresh: 60s}
+          - - {widget: tiles, title: People figures, source: org.unit.people, refresh: 5m, width: 50%}
+            - {widget: kv, title: Unit, source: org.unit.info, refresh: 5m}
+      Requests:
+        widget: table
+        source: org.unit.requests
+        refresh: 30s
+        columns: {created: {hide: true}}
+        actions:
+          - {key: a, name: answer, action: org.unit.answer, args: {id: '${row.id}', status: '${pick:status}', answer: '${ask:answer}'}}
+      Items:
+        widget: table
+        source: org.unit.items
+        refresh: 60s
+        columns: {updated: {hide: true}, ref: {hide: true}}
+        actions:
+          - {key: n, name: new item, action: org.unit.item, args: {kind: '${ask}', title: '${ask}', severity: '${ask}'}}
+          - {key: x, name: close, action: org.unit.item, args: {id: '${row.id}', kind: '${row.kind}', title: '${row.title}', severity: '${row.severity}', status: closed}}
+      Exposed:
+        widget: table
+        title: What this team shares upward (plugins.org.expose in rig.yaml)
+        source: org.unit.exposed
+        refresh: 5m
+        columns: {unit: {hide: true}, inputs: {hide: true}, error: {hide: true}}
+        preview: {widget: table, source: org.unit.show, args: {name: '${row.name}'}, width: 50%}
+# A project picks the roles it needs: agents: {po: {extends: product-owner}}.
+# Every write these agents make waits in `rig inbox` for a person.
+templates:
+  product-owner:
+    on: unit.request
+    instructions: |
+      You are the product owner of this unit (org.unit.info). The event is a request from the unit
+      above. Read the backlog, merge requests, docs and KPIs that bear on it. Draft the answer: what
+      is asked, what already exists, the plan as epics and stories with acceptance criteria and a
+      rough size, risks and open questions. Create the stories with tracker.create when the request
+      asks for work, then answer the request with org.unit.answer (status answered, or declined
+      with the reason). Never promise dates the backlog does not support.
+    tools: ["*:read", "*.unit.answer", "*.unit.item", "*.tracker.create", "*.tracker.link", "*.docs.write"]
+    approve: ["*.unit.*", "*.tracker.*", "*.docs.*"]
+  product-analyst:
+    on: {schedule: "0 9 * * 1"}
+    instructions: |
+      You are the product analyst of this unit. Read org.unit.kpis and org.unit.items, and the
+      sources behind them. For each KPI in warn or err say why, with the numbers, and record one
+      item (org.unit.item, kind risk) per real cause, not per symptom; close items whose cause is
+      gone. Summarise the week in a highlight item. Say plainly when the data cannot answer.
+    tools: ["*:read", "*.unit.item"]
+    approve: ["*.unit.*"]
