@@ -13,6 +13,7 @@ config:
   escalate: {type: string, description: "lowest severity of a child's item shown here (default high)"}
   cache: {type: string, description: "how long a child's answer is kept (default 1m)"}
   drill: {type: array, description: "roles of a remote caller that may read a child's own figures through this unit (child=); by default a unit above sees this unit's roll-up only"}
+  expose: {type: array, description: "what the units above may read or run here: {name, title, description, source | action | from: child/name, args, inputs, widget, refresh, to: roles (default [parent])}"}
 # KPIs come from any source of the project, so org reads through the host.
 permissions: {uses: ["*"]}
 views:

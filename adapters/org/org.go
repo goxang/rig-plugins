@@ -35,6 +35,8 @@ type Config struct {
 	Cache string `json:"cache"`
 	// Drill lists the roles that may read a child's own figures through this unit; a local caller always may.
 	Drill []string `json:"drill"`
+	// Expose is what the units above may read or run here, each item to the roles in its to.
+	Expose []Exposure `json:"expose"`
 }
 
 // Feed turns rows of a local source (incidents, risks in the tracker) into items.
@@ -215,6 +217,36 @@ func Register(p *sdk.Plugin) {
 		return frames.Of(n.children()), nil
 	}, sdk.Describe("the units below: reachable, KPI status counts, escalated items, open requests"))
 
+	p.Source("unit.exposed", func(c *sdk.Ctx, a childArg) (*sdk.Frame, error) {
+		n, err := open(c)
+		if err != nil {
+			return nil, err
+		}
+		rows, err := n.exposed(a.Child)
+		if err != nil {
+			return nil, err
+		}
+		return frames.Of(rows), nil
+	}, sdk.Describe("what this unit exposes to the caller; with child (a name or *) what the units below expose to this one"))
+	p.Source("unit.show", func(c *sdk.Ctx, a sdk.Args) (*sdk.Frame, error) {
+		n, err := open(c)
+		if err != nil {
+			return nil, err
+		}
+		f, err := n.show(a)
+		if err != nil {
+			return nil, err
+		}
+		return convert[sdk.Frame](f), nil
+	}, sdk.Describe("read an exposed source by name, with its declared inputs"), sdk.Arguments(exposeArgs))
+
+	p.Action("unit.invoke", sdk.Write, func(c *sdk.Ctx, a sdk.Args) (*sdk.Result, error) {
+		n, err := open(c)
+		if err != nil {
+			return nil, err
+		}
+		return n.invoke(a)
+	}, sdk.Describe("run an exposed action by name, with its declared inputs only"), sdk.Arguments(exposeArgs))
 	p.Action("unit.request", sdk.Write, func(c *sdk.Ctx, a requestArgs) (*sdk.Result, error) {
 		n, err := open(c)
 		if err != nil {

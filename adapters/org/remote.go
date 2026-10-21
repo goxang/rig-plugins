@@ -57,7 +57,7 @@ func (n *node) child(name, source string, args protocol.Args) (*protocol.Frame, 
 	if a != nil && !a.stale && time.Since(a.at) < ttl {
 		return a.frame, nil
 	}
-	f, err := client(ch).Query(n.ctx, plugin(ch)+"."+source, args)
+	f, err := n.dial(ch).Query(n.ctx, plugin(ch)+"."+source, args)
 	cacheMu.Lock()
 	defer cacheMu.Unlock()
 	if err != nil {

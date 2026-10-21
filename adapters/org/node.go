@@ -23,6 +23,8 @@ type node struct {
 	ctx   context.Context
 	cfg   *Config
 	query func(source string, args map[string]any) (*protocol.Frame, error)
+	run   func(action string, args map[string]any) (*sdk.Result, error)
+	dial  func(Child) unitClient
 	state interface {
 		get(key string, v any) error
 		set(key string, v any) error
@@ -60,6 +62,8 @@ func open(c *sdk.Ctx) (*node, error) {
 			}
 			return convert[protocol.Frame](f), nil
 		},
+		run:  c.Run,
+		dial: func(ch Child) unitClient { return client(ch) },
 		emit: func(topic string, data map[string]any) {
 			_ = c.Emit(sdk.Event{Topic: topic, Time: time.Now().Format(time.RFC3339), Data: data})
 		},
@@ -192,7 +196,7 @@ func (n *node) request(a requestArgs) (*sdk.Result, error) {
 			return nil, &sdk.Error{Code: sdk.CodeNotFound, Message: fmt.Sprintf("%s is not a child of %s (have %s)", a.To, n.cfg.Unit, strings.Join(n.childNames(), ", "))}
 		}
 		args := protocol.Args{"title": a.Title, "body": a.Body, "due": a.Due, "from": n.cfg.Unit, "by": first(a.By, n.caller)}
-		_, res, err := client(ch).Run(n.ctx, plugin(ch)+".unit.request", args, api.RunOpts{})
+		_, res, err := n.dial(ch).Run(n.ctx, plugin(ch)+".unit.request", args, api.RunOpts{})
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", a.To, err)
 		}
