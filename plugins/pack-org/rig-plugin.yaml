@@ -64,9 +64,3 @@ templates:
       findings as items of kind risk.
     tools: ["org.unit.people:read", "org.unit.children:read", "org.unit.info:read", "*.unit.item"]
     approve: ["*.unit.*"]
-policy:
-  roles:
-    # the token a parent unit reads this one with
-    parent: { allow: ["org.unit.*:read", "org.unit.request:write"] }
-    # people figures, never delivery detail
-    hr: { allow: ["org.unit.info:read", "org.unit.people:read", "org.unit.requests:read", "org.unit.request:write"] }

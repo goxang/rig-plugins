@@ -36,7 +36,6 @@ func TestOrgFlow(t *testing.T) {
 	}
 	var pack struct {
 		Templates map[string]any `yaml:"templates"`
-		Policy    map[string]any `yaml:"policy"`
 	}
 	if err := yaml.Unmarshal(raw, &pack); err != nil {
 		t.Fatal(err)
@@ -60,7 +59,6 @@ func TestOrgFlow(t *testing.T) {
 			"environments": map[string]any{"dev": map[string]any{"runtime": map[string]any{"type": "local"}}},
 			"plugins":      map[string]any{"org": org},
 			"templates":    pack.Templates,
-			"policy":       pack.Policy,
 			"agents":       agents,
 		})
 		if err := os.WriteFile(filepath.Join(w.dir, "rig.yaml"), spec, 0o600); err != nil {
