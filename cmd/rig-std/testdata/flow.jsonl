@@ -1,0 +1,4 @@
+{"dir":">","msg":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"host":{"name":"rig","version":"1.0.0"},"protocols":["rig/1"]}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":1,"result":{"name":"flow","version":"dev","protocol":"rig/1","provides":{"sources":{"flow.graph":{"description":"the flow as a graph: edges (from, to) with rate, error % and latency, and nodes with their status"},"flow.summary":{"description":"per type: count today, success % and p95 latency"}}}}}}
+{"dir":">","msg":{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}}
+{"dir":"<","msg":{"jsonrpc":"2.0","id":2,"result":{}}}

@@ -1,0 +1,17 @@
+description: "a live flow diagram: rate, errors and latency between the parts of a system, from PromQL or simulated for a demo"
+config:
+  simulate: {type: boolean, description: "make the numbers up (every row says simulated): a demo without metrics"}
+  source: {type: string, description: "the metrics component to query (default the first)"}
+  nodes: {type: array, description: "{name, label}: labels for the parts; the edges name them"}
+  edges: {type: array, description: "{from, to, label, rate, errors, latency, sim}: rate and errors per second and latency in ms, as PromQL; sim is the rate a simulation centres on"}
+  types: {type: array, description: "{name, label, count, errors, latency, share}: per transaction type, today's count and errors and p95 ms as PromQL"}
+  warn: {type: number, description: "error % an edge turns warn at (default 1)"}
+  err: {type: number, description: "error % an edge turns err at (default 5)"}
+permissions: {uses: ["metrics.query"]}
+views:
+  Flow:
+    slot: tab
+    modes: [software]
+    grid:
+      - - {widget: graph, title: Live flow, source: flow.graph, refresh: 5s}
+      - - {widget: table, title: Today by type, source: flow.summary, refresh: 30s}

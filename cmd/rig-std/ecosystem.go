@@ -8,6 +8,7 @@ import (
 	"github.com/goxang/rig-plugins/adapters/cloud/aws"
 	"github.com/goxang/rig-plugins/adapters/docs/confluence"
 	"github.com/goxang/rig-plugins/adapters/docs/markdown"
+	"github.com/goxang/rig-plugins/adapters/flow"
 	"github.com/goxang/rig-plugins/adapters/iac/helm"
 	"github.com/goxang/rig-plugins/adapters/iac/terraform"
 	"github.com/goxang/rig-plugins/adapters/notify/slack"
@@ -73,6 +74,7 @@ func init() {
 		"slack":         slack.Register,
 		"registry":      registry.Register,
 		"org":           org.Register,
+		"flow":          flow.Register,
 	})
 	maps.Copy(importers, map[string]map[string]importer{
 		"gitlab":      {"gitlab-ci": {[]string{".gitlab-ci.yml"}, imp.GitLabCI}},
