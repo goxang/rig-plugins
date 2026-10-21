@@ -14,6 +14,8 @@ Building from source (Go 1.26+): `go install github.com/goxang/rig-plugins/cmd/r
 type names that plugin. A name shared by several kinds (`docker`, `command`, `http`) is one plugin
 implementing each kind's contract.
 
+[`docs/org.md`](docs/org.md): a company as a tree of projects, with a plugin per management layer.
+
 ## Layout
 
 - `cmd/rig-std/` the binary and its plugin table
