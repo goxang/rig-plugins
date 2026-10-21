@@ -1,0 +1,60 @@
+description: "unit/1: this project as an organisational unit: KPIs, people figures, items and requests, rolled up from the units below over rig serve"
+config:
+  unit: {type: string, description: "this unit's name, as the unit above calls it (default: the project's directory name)"}
+  title: {type: string}
+  layer: {type: integer, description: "1 for a team, 2 for the management above it, ..."}
+  parent: {type: string}
+  owner: {type: string}
+  description: {type: string}
+  kpis: {type: array, description: "delivery KPIs: {name, title, value | source+args+transform+since | from: children, reduce, field, ok, warn}"}
+  people: {type: array, description: "people figures at unit level, same shape as kpis"}
+  items: {type: array, description: "feeds of items from local sources: {kind, source, args, transform, map, severity}"}
+  children: {type: object, description: "name: {url, token, env, fingerprint}: the units below, each a rig serve"}
+  escalate: {type: string, description: "lowest severity of a child's item shown here (default high)"}
+  cache: {type: string, description: "how long a child's answer is kept (default 1m)"}
+# KPIs come from any source of the project, so org reads through the host.
+permissions: {uses: ["*"]}
+views:
+  Unit:
+    slot: tab
+    modes: [product, software]
+    tabs:
+      Overview:
+        grid:
+          - - {widget: kv, title: Unit, source: org.unit.info, refresh: 5m, width: 35%}
+            - widget: table
+              title: Units below
+              source: org.unit.children
+              refresh: 60s
+              preview: {widget: table, source: org.unit.kpis, args: {child: '${row.name}'}, width: 50%}
+              actions:
+                - {key: r, name: ask this unit, action: org.unit.request, args: {to: '${row.name}', title: '${ask}', body: '${ask}'}}
+          - - {widget: table, title: KPIs, source: org.unit.kpis, refresh: 60s, columns: {unit: {hide: true}, updated: {hide: true}}}
+          - - {widget: table, title: Items, source: org.unit.items, refresh: 60s, columns: {updated: {hide: true}, ref: {hide: true}}}
+      KPIs:
+        widget: table
+        source: org.unit.kpis
+        refresh: 60s
+      People:
+        widget: table
+        source: org.unit.people
+        refresh: 5m
+      Items:
+        widget: table
+        source: org.unit.items
+        refresh: 60s
+        actions:
+          - {key: n, name: new item, action: org.unit.item, args: {kind: '${ask}', title: '${ask}', severity: '${ask}'}}
+          - {key: x, name: close, action: org.unit.item, args: {id: '${row.id}', kind: '${row.kind}', title: '${row.title}', severity: '${row.severity}', status: closed}}
+      Requests:
+        widget: table
+        source: org.unit.requests
+        refresh: 30s
+        actions:
+          - {key: a, name: answer, action: org.unit.answer, args: {id: '${row.id}', status: '${pick:status}', answer: '${ask:answer}'}}
+          - {key: r, name: ask a unit below, action: org.unit.request, args: {to: '${ask}', title: '${ask}', body: '${ask}'}}
+      Children:
+        widget: table
+        source: org.unit.children
+        refresh: 60s
+        preview: {widget: table, source: org.unit.items, args: {child: '${row.name}'}, width: 50%}
