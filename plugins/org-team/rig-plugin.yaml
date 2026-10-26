@@ -1,6 +1,6 @@
 name: org-team
-version: 1.0.0
-description: "layer 1, a team as a unit: its report to the unit above, requests, items, what it exposes, and a product owner and analyst as agents"
+version: 1.1.0
+description: "layer 1, a team as a unit: its report to the unit above, goals it set, reports, requests, items, what it exposes, and a product owner and analyst as agents"
 publisher: goxang
 requires:
   org: ^1
@@ -15,6 +15,20 @@ views:
           - - {widget: tiles, title: What the unit above sees, source: org.unit.kpis, refresh: 60s}
           - - {widget: tiles, title: People figures, source: org.unit.people, refresh: 5m, width: 50%}
             - {widget: kv, title: Unit, source: org.unit.info, refresh: 5m}
+      Goals:
+        widget: table
+        title: Goals the unit above set, measured on this team's KPIs
+        source: org.unit.goals
+        refresh: 60s
+        columns: {id: {hide: true}, to: {hide: true}, created: {hide: true}}
+        actions:
+          - {key: a, name: accept, action: org.unit.goal, args: {id: '${row.id}', status: accepted}}
+          - {key: m, name: met, action: org.unit.goal, args: {id: '${row.id}', status: met}}
+          - {key: n, name: note, action: org.unit.goal, args: {id: '${row.id}', note: '${ask:note}'}}
+      Reports:
+        grid:
+          - - {widget: table, title: Published to the unit above, source: org.unit.reports, refresh: 2m, width: 55%, columns: {id: {hide: true}, unit: {hide: true}}}
+            - {widget: form, title: Publish a report (weekly status, release, retro), action: org.unit.report, submit: Publish}
       Requests:
         widget: table
         source: org.unit.requests
@@ -57,6 +71,7 @@ templates:
       You are the product analyst of this unit. Read org.unit.kpis and org.unit.items, and the
       sources behind them. For each KPI in warn or err say why, with the numbers, and record one
       item (org.unit.item, kind risk) per real cause, not per symptom; close items whose cause is
-      gone. Summarise the week in a highlight item. Say plainly when the data cannot answer.
-    tools: ["*:read", "*.unit.item"]
+      gone. Summarise the week in a status report for the unit above (org.unit.report). Say plainly
+      when the data cannot answer.
+    tools: ["*:read", "*.unit.item", "*.unit.report"]
     approve: ["*.unit.*"]

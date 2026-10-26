@@ -27,6 +27,10 @@ type Kind struct {
 	Derive func(row map[string]any)
 	// Sort is a field to order by; a leading - sorts descending. Left out, the latest updated first.
 	Sort string
+	// Private records are seen and changed only by the person who made them.
+	Private bool
+	// Saved runs after a create or update, with the saved row (a meeting sends its invite).
+	Saved func(c *sdk.Ctx, row map[string]any, res *sdk.Result) *sdk.Result
 }
 
 type Field struct {
@@ -34,6 +38,9 @@ type Field struct {
 	Required, Computed      bool
 	Options                 []string
 	Default                 any
+	// Format is the form's input (textarea, markdown, date, date-time, email); OptionsFrom fills a
+	// select from a source: "source value label". A list type takes many.
+	Format, OptionsFrom string
 }
 
 // ponytail: one lock per plugin process; a CLI call and a serve on the same project can still race
@@ -46,10 +53,23 @@ func Records(p *sdk.Plugin, k Kind) {
 		if err != nil {
 			return nil, err
 		}
+		if k.Private {
+			rows = slices.DeleteFunc(rows, func(r map[string]any) bool { return Str(r["by"]) != c.Call.User })
+		}
 		return k.frame(rows), nil
 	}, sdk.Describe(first(k.Title, k.Plural)+": "+k.Name+" records"))
 	p.Action(k.Name, sdk.Write, func(c *sdk.Ctx, a sdk.Args) (*sdk.Result, error) {
-		return Save(c, c.Call.User, k, a)
+		res, err := Save(c, c.Call.User, k, a)
+		if err != nil || k.Saved == nil || a["delete"] == true || a["delete"] == "true" {
+			return res, err
+		}
+		rows, _ := load(c, k)
+		for _, r := range rows {
+			if r["id"] == res.Outputs["id"] {
+				return k.Saved(c, r, res), nil
+			}
+		}
+		return res, nil
 	}, sdk.Describe("create a "+k.Name+", or update one (id) or delete it (id, delete: true)"), sdk.Arguments(k.schema()))
 }
 
@@ -112,7 +132,7 @@ func Save(c state, user string, k Kind, a sdk.Args) (*sdk.Result, error) {
 	}
 	id, _ := a["id"].(string)
 	i := slices.IndexFunc(rows, func(r map[string]any) bool { return id != "" && r["id"] == id })
-	if id != "" && i < 0 {
+	if id != "" && (i < 0 || k.Private && Str(rows[i]["by"]) != user) {
 		return nil, &sdk.Error{Code: sdk.CodeNotFound, Message: "no " + k.Name + " " + id}
 	}
 	if del, _ := a["delete"].(bool); del || a["delete"] == "true" {
@@ -153,7 +173,7 @@ func Save(c state, user string, k Kind, a sdk.Args) (*sdk.Result, error) {
 	if err := c.SetState("records."+k.Plural, rows); err != nil {
 		return nil, err
 	}
-	return &sdk.Result{Message: k.Name + " " + row["id"].(string) + " saved", Outputs: map[string]any{"id": row["id"]}}, nil
+	return &sdk.Result{Message: k.Name + " " + Str(row["id"]) + " saved", Outputs: map[string]any{"id": row["id"]}}, nil
 }
 
 // value is v as f's type; the CLI sends strings.
@@ -176,6 +196,21 @@ func (f Field) value(v any) (any, error) {
 		if isString {
 			return s == "true" || s == "yes", nil
 		}
+	case "list":
+		// kept as "a, b" so a table shows it and a ${row.x} placeholder passes it on
+		var out []string
+		if l, ok := v.([]any); ok {
+			for _, x := range l {
+				out = append(out, fmt.Sprint(x))
+			}
+		} else {
+			for _, x := range strings.Split(s, ",") {
+				if x = strings.TrimSpace(x); x != "" {
+					out = append(out, x)
+				}
+			}
+		}
+		return strings.Join(out, ", "), nil
 	}
 	if len(f.Options) > 0 && !slices.Contains(f.Options, fmt.Sprint(v)) {
 		return nil, &sdk.Error{Code: sdk.CodeInvalidParams, Message: f.Name + " is one of " + strings.Join(f.Options, ", ")}
@@ -192,14 +227,33 @@ func (k Kind) schema() sdk.Schema {
 		if f.Computed {
 			continue
 		}
-		p := map[string]any{"type": map[string]string{"int": "integer", "bool": "boolean", "time": "string", "": "string"}[f.Type]}
+		p := map[string]any{"type": map[string]string{"int": "integer", "bool": "boolean", "time": "string", "list": "array", "": "string"}[f.Type]}
 		if p["type"] == nil {
 			p["type"] = f.Type
+		}
+		if f.Format != "" {
+			p["format"] = f.Format
+		} else if f.Type == "time" {
+			p["format"] = "date"
+		}
+		if o := strings.Fields(f.OptionsFrom); len(o) > 0 {
+			x := map[string]any{"source": o[0]}
+			for i, k := range []string{"value", "label"} {
+				if len(o) > i+1 {
+					x[k] = o[i+1]
+				}
+			}
+			p["x-options"] = x
+		}
+		if f.Default != nil {
+			p["default"] = f.Default
 		}
 		if f.Description != "" {
 			p["description"] = f.Description
 		}
-		if len(f.Options) > 0 {
+		if len(f.Options) > 0 && f.Type == "list" {
+			p["items"] = map[string]any{"enum": f.Options}
+		} else if len(f.Options) > 0 {
 			p["enum"] = f.Options
 		}
 		props[f.Name] = p
@@ -230,8 +284,8 @@ func (k Kind) frame(rows []map[string]any) *sdk.Frame {
 // when reads a stored time: RFC3339 or a date.
 func when(v any) any {
 	s, _ := v.(string)
-	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
-		if t, err := time.Parse(layout, s); err == nil {
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02"} {
+		if t, err := time.ParseInLocation(layout, s, time.Local); err == nil {
 			return t
 		}
 	}
@@ -391,4 +445,13 @@ func Num(v any) float64 {
 		return f
 	}
 	return 0
+}
+
+// Time reads a stored time (RFC3339, 2006-01-02T15:04 or a date); zero when it is none.
+func Time(v any) time.Time {
+	if t, ok := v.(time.Time); ok {
+		return t
+	}
+	t, _ := when(v).(time.Time)
+	return t
 }

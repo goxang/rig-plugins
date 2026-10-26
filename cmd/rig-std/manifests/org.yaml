@@ -21,7 +21,7 @@ permissions: {uses: ["*"]}
 policy:
   roles:
     parent:
-      allow: ["org.unit.*:read", "org.unit.request:write"]
+      allow: ["org.unit.*:read", "org.unit.request:write", "org.unit.goal:write"]
       approve: ["org.unit.invoke:write"]
     hr:
       allow: ["org.unit.info:read", "org.unit.people:read", "org.unit.requests:read", "org.unit.exposed:read", "org.unit.show:read", "org.unit.request:write"]

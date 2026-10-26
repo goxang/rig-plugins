@@ -3,7 +3,7 @@ config:
   user: {type: string}
   token: {type: string, secret: true}
   space: {type: string, description: "space keys, comma-separated (PROD, SWIT); new pages go to the first"}
-permissions: {secrets: [CONFLUENCE_TOKEN, ATLASSIAN_TOKEN]}
+permissions: {secrets: [CONFLUENCE_TOKEN, ATLASSIAN_TOKEN, CONFLUENCE_URL, CONFLUENCE_USER, CONFLUENCE_SPACE]}
 # Like the KV screen: the page tree on the left, the selected page on the right (v hides it).
 views:
   Confluence:
@@ -24,3 +24,12 @@ views:
         refresh: 60s
         columns: {id: {hide: true}, kind: {width: 6}, url: {hide: true}, path: {hide: true}}
         preview: {source: confluence.docs.read, args: {id: '${row.id}'}, field: markdown, width: 60%}
+      Write:
+        widget: form
+        title: New or updated page
+        action: confluence.docs.write
+        submit: Publish
+      Connection:
+        grid:
+          - - {widget: kv, title: Account, source: confluence.connection, refresh: 60s, width: 40%}
+            - {widget: form, title: Connect Confluence, action: confluence.connect, submit: Connect}

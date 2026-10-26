@@ -25,8 +25,6 @@ func page(p *sdk.Plugin, name string, build func(c *sdk.Ctx) (*sdk.Node, error))
 
 func grid(children ...sdk.Node) *sdk.Node { return &sdk.Node{Widget: "grid", Children: children} }
 
-func row(children ...sdk.Node) sdk.Node { return sdk.Node{Widget: "row", Children: children} }
-
 func bound(widget, title, source string, every string, props sdk.Args) sdk.Node {
 	if props == nil {
 		props = sdk.Args{}

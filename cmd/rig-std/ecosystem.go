@@ -12,6 +12,7 @@ import (
 	"github.com/goxang/rig-plugins/adapters/iac/helm"
 	"github.com/goxang/rig-plugins/adapters/iac/terraform"
 	"github.com/goxang/rig-plugins/adapters/layers"
+	"github.com/goxang/rig-plugins/adapters/notify/mail"
 	"github.com/goxang/rig-plugins/adapters/notify/slack"
 	"github.com/goxang/rig-plugins/adapters/org"
 	"github.com/goxang/rig-plugins/adapters/registry"
@@ -41,6 +42,7 @@ var contractsOf = map[string][]string{
 	"terraform":     {"iac/1"},
 	"registry":      {"registry/1"},
 	"slack":         {"notify/1"},
+	"mail":          {"notify/1"},
 	"org":           {"unit/1"},
 }
 
@@ -73,6 +75,7 @@ func init() {
 		"helm":           helm.Register,
 		"aws":            aws.Register,
 		"slack":          slack.Register,
+		"mail":           mail.Register,
 		"registry":       registry.Register,
 		"org":            org.Register,
 		"flow":           flow.Register,
@@ -82,6 +85,7 @@ func init() {
 		"org-people":     layers.People,
 		"org-executive":  layers.Executive,
 		"org-portal":     layers.Portal,
+		"org-delivery":   layers.Delivery,
 	})
 	maps.Copy(importers, map[string]map[string]importer{
 		"gitlab":      {"gitlab-ci": {[]string{".gitlab-ci.yml"}, imp.GitLabCI}},

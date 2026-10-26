@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/goxang/rig-plugins/adapters/vcs/git"
+	"github.com/goxang/rig-plugins/internal/frames"
 	"github.com/goxang/rig-plugins/internal/httpx"
 	"github.com/goxang/rig/sdk"
 )
@@ -29,6 +30,77 @@ func Config(c *sdk.Ctx, key string) string {
 		return fmt.Sprint(v)
 	}
 	return ""
+}
+
+// Setting is config key, else the secret <PREFIX>_<KEY> a connect form stored.
+func Setting(c *sdk.Ctx, prefix, key string) string {
+	if v := Config(c, key); v != "" {
+		return v
+	}
+	return Secret(c, prefix+"_"+strings.ToUpper(key))
+}
+
+// Account is what a connect form asks of a hosted service; Scope is its project or space key.
+type Account struct {
+	URL   string `json:"url" title:"Address" rig:"required" desc:"https://your-org.atlassian.net"`
+	User  string `json:"user" title:"Email or user" desc:"Cloud: the account email; empty for a Server personal token"`
+	Token string `json:"token" title:"API token" format:"password" desc:"empty keeps the stored one"`
+	Scope string `json:"scope" title:"Project or space key"`
+}
+
+type connection struct {
+	Connected bool   `json:"connected"`
+	URL       string `json:"url"`
+	User      string `json:"user"`
+	Scope     string `json:"scope"`
+	Message   string `json:"message"`
+}
+
+// Connect registers connect, disconnect and connection: a form that keeps a service's account in
+// the plugin's secrets PREFIX_URL, _USER, _TOKEN and _<SCOPE>, which the manifest must declare.
+// check proves the account works and says who it is.
+func Connect(p *sdk.Plugin, prefix, scope string, check func(*sdk.Ctx) (string, error)) {
+	keys := []string{"url", "user", "token", scope}
+	set := func(c *sdk.Ctx, vals map[string]string) error {
+		for _, k := range keys {
+			if v, ok := vals[k]; ok {
+				if err := c.SetSecret(prefix+"_"+strings.ToUpper(k), v); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	p.Action("connect", sdk.EffectWrite, func(c *sdk.Ctx, in Account) (*sdk.Result, error) {
+		vals := map[string]string{"url": strings.TrimSuffix(strings.TrimSpace(in.URL), "/"), "user": strings.TrimSpace(in.User), scope: strings.TrimSpace(in.Scope)}
+		if in.Token != "" {
+			vals["token"] = strings.TrimSpace(in.Token)
+		} else if Setting(c, prefix, "token") == "" {
+			return nil, fmt.Errorf("an API token is needed")
+		}
+		if err := set(c, vals); err != nil {
+			return nil, err
+		}
+		who, err := check(c)
+		if err != nil {
+			return nil, fmt.Errorf("saved, but the service refused it: %w", err)
+		}
+		return &sdk.Result{Message: "connected as " + who}, nil
+	}, sdk.Describe("store the account (address, user, API token) and test it"))
+	p.Action("disconnect", sdk.EffectWrite, func(c *sdk.Ctx, _ sdk.Empty) (*sdk.Result, error) {
+		return &sdk.Result{Message: "disconnected"}, set(c, map[string]string{"url": "", "user": "", "token": "", scope: ""})
+	}, sdk.Describe("forget the stored account"))
+	p.Source("connection", func(c *sdk.Ctx, _ sdk.Empty) (*sdk.Frame, error) {
+		cn := connection{URL: Setting(c, prefix, "url"), User: Setting(c, prefix, "user"), Scope: Setting(c, prefix, scope)}
+		if cn.URL == "" {
+			cn.Message = "not connected: fill in the form"
+		} else if who, err := check(c); err != nil {
+			cn.Message = err.Error()
+		} else {
+			cn.Connected, cn.Message = true, "connected as "+who
+		}
+		return frames.Of([]connection{cn}), nil
+	}, sdk.Cache("30s"), sdk.Describe("whether the stored account works"))
 }
 
 // Token is config `token`, else the first of the secrets rig has a value for, else the same names in the environment.

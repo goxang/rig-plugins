@@ -1,0 +1,31 @@
+description: "email for people who run a team: an inbox, compose with a calendar invite, Gmail or Outlook with an app password"
+permissions: {secrets: [MAIL_ADDRESS, MAIL_PASSWORD, MAIL_NAME, MAIL_SMTP, MAIL_IMAP]}
+views:
+  Mail:
+    slot: tab
+    tabs:
+      Inbox:
+        widget: table
+        source: mail.inbox
+        refresh: 2m
+        columns: {uid: {hide: true}}
+        preview: {source: mail.message, args: {uid: '${row.uid}'}, field: markdown, width: 55%}
+        actions:
+          - {key: r, name: reply, action: mail.send, args: {to: '${row.from}', subject: 'Re: ${row.subject}', body: '${ask}'}}
+          - {key: f, name: forward, action: mail.send, args: {to: '${ask}', subject: 'Fwd: ${row.subject}', body: 'See the message from ${row.from}.'}}
+      Unread:
+        widget: table
+        source: mail.inbox
+        args: {query: UNSEEN}
+        refresh: 2m
+        columns: {uid: {hide: true}}
+        preview: {source: mail.message, args: {uid: '${row.uid}'}, field: markdown, width: 55%}
+      Compose:
+        widget: form
+        title: New email (set a start to send a meeting invite)
+        action: mail.send
+        submit: Send
+      Connection:
+        grid:
+          - - {widget: kv, title: Mailbox, source: mail.connection, refresh: 60s, width: 40%}
+            - {widget: form, title: Connect a mailbox, action: mail.connect, submit: Connect}

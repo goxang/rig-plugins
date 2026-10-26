@@ -150,7 +150,7 @@ type childArg struct {
 }
 
 type requestArgs struct {
-	To    string `json:"to" desc:"the child unit to ask; empty records it here"`
+	To    string `json:"to" desc:"the child unit to ask; empty records it here" options:"org.unit.children name title"`
 	Title string `json:"title" rig:"required"`
 	Body  string `json:"body"`
 	Due   string `json:"due"`
@@ -178,7 +178,8 @@ type itemArgs struct {
 var mu sync.Mutex
 
 func Register(p *sdk.Plugin) {
-	p.Emits("unit.request", "unit.answered")
+	p.Emits("unit.request", "unit.answered", "unit.goal", "unit.report")
+	registerGoals(p)
 	p.Source("unit.info", func(c *sdk.Ctx, _ sdk.Args) (*sdk.Frame, error) {
 		cfg, err := load(c)
 		if err != nil {

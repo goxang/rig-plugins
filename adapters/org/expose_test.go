@@ -36,12 +36,24 @@ func (c asChild) Query(_ context.Context, source string, args protocol.Args) (*p
 		return convert[protocol.Frame](pframes.Of(rows)), nil
 	case "org.unit.show":
 		return c.as().show(args)
+	case "org.unit.goals":
+		return convert[protocol.Frame](pframes.Of(c.as().goals())), nil
+	case "org.unit.reports":
+		child, _ := args["child"].(string)
+		rows, err := c.as().reports(child)
+		return convert[protocol.Frame](pframes.Of(rows)), err
 	}
 	return nil, &protocol.Error{Code: protocol.CodeNotFound, Message: source}
 }
 
 func (c asChild) Run(_ context.Context, action string, args protocol.Args, _ api.RunOpts) (*jobs.Job, *protocol.RunResult, error) {
-	res, err := c.as().invoke(args)
+	var res *sdk.Result
+	var err error
+	if action == "org.unit.goal" {
+		res, err = c.as().goal(*convert[goalArgs](args))
+	} else {
+		res, err = c.as().invoke(args)
+	}
 	return nil, convert[protocol.RunResult](res), err
 }
 

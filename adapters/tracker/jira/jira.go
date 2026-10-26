@@ -25,18 +25,18 @@ type Jira struct {
 // Open reads plugins.jira: url, user (Cloud: the account email, with an API token), token
 // (JIRA_TOKEN; without user it is a Server personal access token) and project (the default JQL scope).
 func Open(c *sdk.Ctx) (*Jira, error) {
-	base := strings.TrimSuffix(forge.Config(c, "url"), "/")
+	base := strings.TrimSuffix(forge.Setting(c, "JIRA", "url"), "/")
 	if base == "" {
-		return nil, sdk.Unavailable("jira has no address", "set plugins.jira.url (https://your-org.atlassian.net)")
+		return nil, sdk.Unavailable("jira has no address", "connect it on the Jira tab, or set plugins.jira.url (https://your-org.atlassian.net)")
 	}
 	ep := httpx.Endpoint{Headers: map[string]string{"Accept": "application/json"}}
 	tok := forge.Token(c, "JIRA_TOKEN", "JIRA_API_TOKEN", "ATLASSIAN_TOKEN")
-	if u := forge.Config(c, "user"); u != "" {
+	if u := forge.Setting(c, "JIRA", "user"); u != "" {
 		ep.User, ep.Password = u, tok
 	} else {
 		ep.Token = tok
 	}
-	return &Jira{Client: &forge.Client{Base: base, Host: base, Endpoint: ep}, project: forge.Config(c, "project")}, nil
+	return &Jira{Client: &forge.Client{Base: base, Host: base, Endpoint: ep}, project: forge.Setting(c, "JIRA", "project")}, nil
 }
 
 type fields struct {
@@ -216,6 +216,54 @@ var jqlWords = []string{"project", "status", "assignee", "reporter", "priority",
 func Register(p *sdk.Plugin) {
 	open := func(c *sdk.Ctx) (*Jira, error) { return Open(c) }
 
+	forge.Connect(p, "JIRA", "project", func(c *sdk.Ctx) (string, error) {
+		j, err := open(c)
+		if err != nil {
+			return "", err
+		}
+		var me struct {
+			DisplayName string `json:"displayName"`
+		}
+		return me.DisplayName, j.Get(c, "/rest/api/2/myself", &me)
+	})
+
+	p.Source("tracker.backlog", func(c *sdk.Ctx, _ sdk.Empty) (*sdk.Frame, error) {
+		j, err := open(c)
+		if err != nil {
+			return nil, err
+		}
+		jql := "(sprint is EMPTY OR sprint not in openSprints()) AND statusCategory != Done"
+		if j.project != "" {
+			jql = "project = " + j.project + " AND " + jql
+		}
+		rows, err := j.Search(c, jql+" ORDER BY rank")
+		return frames.Of(rows), err
+	}, sdk.Cache("30s"), sdk.Describe("issues in no open sprint and not done, in rank order"))
+
+	p.Source("tracker.epics", func(c *sdk.Ctx, _ sdk.Empty) (*sdk.Frame, error) {
+		j, err := open(c)
+		if err != nil {
+			return nil, err
+		}
+		jql := "issuetype = Epic"
+		if j.project != "" {
+			jql = "project = " + j.project + " AND " + jql
+		}
+		rows, err := j.Search(c, jql+" ORDER BY rank")
+		return frames.Of(rows), err
+	}, sdk.Cache("5m"))
+
+	p.Action("tracker.sprint-move", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
+		Key    string `json:"key" rig:"required"`
+		Sprint string `json:"sprint" rig:"required" desc:"a sprint id, or backlog"`
+	}) (*sdk.Result, error) {
+		j, err := open(c)
+		if err != nil {
+			return nil, err
+		}
+		return done(in.Key+" → "+in.Sprint, j.toSprint(c, in.Key, in.Sprint))
+	})
+
 	p.Source("tracker.issues", func(c *sdk.Ctx, in struct {
 		Query    string `json:"query" desc:"JQL, or words to search"`
 		Assignee string `json:"assignee" desc:"a name, or me"`
@@ -325,10 +373,15 @@ func Register(p *sdk.Plugin) {
 
 	p.Action("tracker.create", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
 		Summary     string `json:"summary" rig:"required"`
-		Description string `json:"description"`
+		Description string `json:"description" format:"textarea"`
 		Project     string `json:"project" desc:"default plugins.jira.project"`
 		Type        string `json:"type" desc:"issue type (default Task)"`
 		Assignee    string `json:"assignee" desc:"a name or email, or me"`
+		Priority    string `json:"priority" enum:"Highest,High,Medium,Low,Lowest"`
+		Labels      string `json:"labels" desc:"comma separated"`
+		Epic        string `json:"epic" desc:"the epic's key"`
+		Due         string `json:"due" format:"date"`
+		Sprint      string `json:"sprint" desc:"a sprint id; empty leaves it in the backlog"`
 	}) (*sdk.Result, error) {
 		j, err := open(c)
 		if err != nil {
@@ -345,14 +398,30 @@ func Register(p *sdk.Plugin) {
 		if typ == "" {
 			typ = "Task"
 		}
+		f := map[string]any{"project": map[string]string{"key": proj}, "issuetype": map[string]string{"name": typ},
+			"summary": in.Summary, "description": in.Description}
+		if in.Priority != "" {
+			f["priority"] = map[string]string{"name": in.Priority}
+		}
+		if ls := strings.FieldsFunc(in.Labels, func(r rune) bool { return r == ',' || r == ' ' }); len(ls) > 0 {
+			f["labels"] = ls
+		}
+		if in.Epic != "" {
+			f["parent"] = map[string]string{"key": in.Epic}
+		}
+		if in.Due != "" {
+			f["duedate"] = in.Due
+		}
 		var res struct{ Key string }
-		err = j.Send(c, "POST", "/rest/api/2/issue", map[string]any{"fields": map[string]any{
-			"project": map[string]string{"key": proj}, "issuetype": map[string]string{"name": typ},
-			"summary": in.Summary, "description": in.Description}}, &res)
-		if err != nil {
+		if err = j.Send(c, "POST", "/rest/api/2/issue", map[string]any{"fields": f}, &res); err != nil {
 			return nil, err
 		}
 		msg := "created " + res.Key
+		if in.Sprint != "" {
+			if err := j.toSprint(c, res.Key, in.Sprint); err != nil {
+				msg += ", not in the sprint: " + err.Error()
+			}
+		}
 		if in.Assignee != "" {
 			u, err := j.user(c, in.Assignee)
 			if err == nil {
@@ -526,6 +595,14 @@ func (j *Jira) columnOrder(ctx context.Context) map[string]int {
 		}
 	}
 	return pos
+}
+
+func (j *Jira) toSprint(ctx context.Context, key, sprint string) error {
+	body := map[string][]string{"issues": {key}}
+	if strings.EqualFold(sprint, "backlog") {
+		return j.Send(ctx, "POST", "/rest/agile/1.0/backlog/issue", body, nil)
+	}
+	return j.Send(ctx, "POST", "/rest/agile/1.0/sprint/"+url.PathEscape(sprint)+"/issue", body, nil)
 }
 
 func done(msg string, err error) (*sdk.Result, error) {

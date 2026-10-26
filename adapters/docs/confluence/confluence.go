@@ -29,18 +29,18 @@ type Confluence struct {
 // email), token (CONFLUENCE_TOKEN or ATLASSIAN_TOKEN) and space (space keys, a list or comma-separated;
 // the first is where new pages go).
 func Open(c *sdk.Ctx) (*Confluence, error) {
-	base := strings.TrimSuffix(forge.Config(c, "url"), "/")
+	base := strings.TrimSuffix(forge.Setting(c, "CONFLUENCE", "url"), "/")
 	if base == "" {
-		return nil, sdk.Unavailable("confluence has no address", "set plugins.confluence.url (https://your-org.atlassian.net/wiki)")
+		return nil, sdk.Unavailable("confluence has no address", "connect it on the Confluence tab, or set plugins.confluence.url (https://your-org.atlassian.net/wiki)")
 	}
 	ep := httpx.Endpoint{Headers: map[string]string{"Accept": "application/json"}}
 	tok := forge.Token(c, "CONFLUENCE_TOKEN", "ATLASSIAN_TOKEN")
-	if u := forge.Config(c, "user"); u != "" {
+	if u := forge.Setting(c, "CONFLUENCE", "user"); u != "" {
 		ep.User, ep.Password = u, tok
 	} else {
 		ep.Token = tok
 	}
-	spaces := spaceKeys(forge.Config(c, "space"))
+	spaces := spaceKeys(forge.Setting(c, "CONFLUENCE", "space"))
 	cf := &Confluence{Client: &forge.Client{Base: base, Endpoint: ep}, spaces: spaces}
 	if len(spaces) > 0 {
 		cf.space = spaces[0]
@@ -264,6 +264,16 @@ func (cf *Confluence) fileDoc(ct content) string {
 }
 
 func Register(p *sdk.Plugin) {
+	forge.Connect(p, "CONFLUENCE", "space", func(c *sdk.Ctx) (string, error) {
+		cf, err := Open(c)
+		if err != nil {
+			return "", err
+		}
+		var me struct {
+			DisplayName string `json:"displayName"`
+		}
+		return me.DisplayName, cf.Get(c, "/rest/api/user/current", &me)
+	})
 	p.Source("docs.search", func(c *sdk.Ctx, in struct {
 		Query string `json:"query" desc:"words, a file name, or CQL"`
 	}) (*sdk.Frame, error) {
@@ -324,7 +334,7 @@ func Register(p *sdk.Plugin) {
 	p.Action("docs.write", sdk.EffectWrite, func(c *sdk.Ctx, in struct {
 		ID       string `json:"id" desc:"the page to update; empty makes a new one"`
 		Title    string `json:"title" rig:"required"`
-		Markdown string `json:"markdown" rig:"required"`
+		Markdown string `json:"markdown" rig:"required" format:"markdown"`
 		Parent   string `json:"parent" desc:"parent page id for a new page"`
 		Space    string `json:"space" desc:"space key (default plugins.confluence.space)"`
 	}) (*sdk.Result, error) {

@@ -1,0 +1,145 @@
+description: "the desk above a team for its product owner, project manager and product analyst: Jira board and backlog, goals down and reports up, the calendar, the team and its messages, the roadmap, Confluence, mail and private notes"
+permissions: {uses: ["org.unit.*", "jira.*", "jira.*.*", "mail.*", "confluence.*", "confluence.*.*"]}
+views:
+  Home:
+    slot: tab
+    grid:
+      - {widget: tiles, title: This week, source: org-delivery.overview, refresh: 60s}
+      - - {widget: calendar, title: Coming up, source: org-delivery.agenda, time: time, end: end, label: title, status: status, refresh: 60s, width: 60%}
+        - {widget: tiles, title: Teams, source: org-delivery.health, refresh: 60s, label: title}
+  Goals:
+    slot: tab
+    tabs:
+      Goals:
+        grid:
+          - {widget: tiles, title: Our KPIs, as the unit above sees them, source: org.unit.kpis, refresh: 60s}
+          - - widget: table
+              title: Goals from above and given to the teams
+              source: org.unit.goals
+              refresh: 60s
+              width: 65%
+              columns: {id: {hide: true}, by: {hide: true}, created: {hide: true}, measure: {hide: true}}
+              actions:
+                - {key: a, name: accept, action: org.unit.goal, args: {to: '${row.to}', id: '${row.id}', status: accepted}}
+                - {key: m, name: met, action: org.unit.goal, args: {to: '${row.to}', id: '${row.id}', status: met}}
+                - {key: x, name: missed, action: org.unit.goal, args: {to: '${row.to}', id: '${row.id}', status: missed}}
+                - {key: n, name: note, action: org.unit.goal, args: {to: '${row.to}', id: '${row.id}', note: '${ask:note}'}}
+            - {widget: form, title: Give a team a goal, action: org.unit.goal, submit: Give}
+      Team KPIs:
+        widget: table
+        source: org-delivery.health
+        refresh: 60s
+        preview: {widget: tiles, source: org.unit.kpis, args: {child: '${row.name}'}, width: 55%}
+  Reports:
+    slot: tab
+    tabs:
+      From the teams:
+        widget: table
+        source: org.unit.reports
+        args: {child: '*'}
+        refresh: 2m
+        columns: {id: {hide: true}, body: {hide: true}}
+        preview: {source: org-delivery.read, args: {kind: report, id: '${row.id}', unit: '${row.unit}'}, field: markdown, width: 55%}
+        actions:
+          - {key: r, name: ask a follow-up, action: org.unit.request, args: {to: '${row.unit}', title: 'About "${row.title}"', body: '${ask}'}}
+      Ours, upward:
+        grid:
+          - - {widget: table, title: Published to the unit above, source: org.unit.reports, refresh: 2m, width: 55%,
+               columns: {id: {hide: true}, body: {hide: true}, unit: {hide: true}},
+               preview: {source: org-delivery.read, args: {kind: report, id: '${row.id}'}, field: markdown, width: 50%}}
+            - {widget: form, title: Publish a report, action: org.unit.report, submit: Publish}
+      Requests:
+        grid:
+          - - {widget: table, title: Requests from above and to the teams, source: org.unit.requests, refresh: 30s, width: 65%, columns: {created: {hide: true}},
+               actions: [{key: a, name: answer, action: org.unit.answer, args: {id: '${row.id}', status: '${pick:status}', answer: '${ask:answer}'}}]}
+            - {widget: form, title: Ask a team, action: org.unit.request, submit: Send}
+  Calendar:
+    slot: tab
+    grid:
+      - - widget: calendar
+          title: Meetings, milestones, due goals and requests, scheduled messages
+          source: org-delivery.agenda
+          time: time
+          end: end
+          label: title
+          status: status
+          refresh: 60s
+          width: 68%
+          actions:
+            - {key: h, name: held, action: org-delivery.meeting, args: {id: '${row.id}', status: held}}
+            - {key: c, name: cancel, action: org-delivery.meeting, args: {id: '${row.id}', status: cancelled}}
+            - {key: u, name: unschedule message, action: org-delivery.unschedule, args: {id: '${row.id}'}}
+        - {widget: form, title: New meeting, action: org-delivery.meeting, submit: Schedule}
+  Roadmap:
+    slot: tab
+    grid:
+      - {widget: timeline, title: Roadmap, source: org-delivery.roadmap, refresh: 5m}
+      - - {widget: board, title: Milestones, source: org-delivery.milestones, by: status, card: title, meta: [date, team, epic], refresh: 60s, width: 65%,
+           lanes: [planned, on-track, at-risk, done, missed],
+           drop: {action: org-delivery.milestone, args: {id: '${row.id}', status: '${lane}'}},
+           actions: [{key: x, name: delete, danger: true, action: org-delivery.milestone, args: {id: '${row.id}', delete: true}}]}
+        - {widget: form, title: New milestone, action: org-delivery.milestone, submit: Add}
+  Team:
+    slot: tab
+    grid:
+      - - {widget: table, title: Members, source: org-delivery.members, refresh: 5m, width: 60%, mark: email,
+           columns: {id: {hide: true}, by: {hide: true}, updated: {hide: true}},
+           actions: [{key: m, name: message, action: org-delivery.message, args: {to: ['${row.email}'], subject: '${ask:subject}', body: '${ask}'}},
+                     {key: x, name: remove, danger: true, action: org-delivery.member, args: {id: '${row.id}', delete: true}}]}
+        - {widget: form, title: Message the team, action: org-delivery.message, submit: Send}
+      - - {widget: table, title: Sent and scheduled, source: org-delivery.messages, refresh: 60s, width: 60%, columns: {id: {hide: true}, body: {hide: true}},
+           actions: [{key: u, name: unschedule, action: org-delivery.unschedule, args: {id: '${row.id}'}}]}
+        - {widget: form, title: Add a member, action: org-delivery.member, submit: Add}
+  Notes:
+    slot: tab
+    grid:
+      - - {widget: table, title: My notes (only you see them), source: org-delivery.notes, refresh: 5m, width: 55%,
+           columns: {id: {hide: true}, body: {hide: true}, by: {hide: true}},
+           preview: {source: org-delivery.read, args: {kind: note, id: '${row.id}'}, field: markdown, width: 55%},
+           actions: [{key: p, name: pin, action: org-delivery.note, args: {id: '${row.id}', pinned: true}},
+                     {key: x, name: delete, danger: true, action: org-delivery.note, args: {id: '${row.id}', delete: true}}]}
+        - {widget: form, title: New note, action: org-delivery.note, submit: Save}
+  Setup:
+    slot: tab
+    grid:
+      - - {widget: kv, title: Jira, source: jira.connection, refresh: 60s}
+        - {widget: kv, title: Confluence, source: confluence.connection, refresh: 60s}
+        - {widget: kv, title: Mailbox, source: mail.connection, refresh: 60s}
+      - - {widget: form, title: Connect Jira (an API token from id.atlassian.com), action: jira.connect, submit: Connect}
+        - {widget: form, title: Connect Confluence, action: confluence.connect, submit: Connect}
+        - {widget: form, title: Connect Gmail or Outlook (an app password), action: mail.connect, submit: Connect}
+ui:
+  title: Delivery
+  tabs: [Home, Jira, Goals, Reports, Live, Calendar, Roadmap, Team, Confluence, Mail, Notes, Setup]
+  system: [inbox]
+  lock: true
+templates:
+  product-owner:
+    on: {schedule: "0 9 * * 1-5"}
+    instructions: |
+      You are the product owner. Read jira.tracker.backlog, jira.tracker.board, org.unit.goals and the
+      requests from above (org.unit.requests). Keep the backlog honest: for each goal or request with no
+      issue behind it, draft one (jira.tracker.create with acceptance criteria in the description and
+      the epic). Comment on issues that sit in a status for more than five days. Never change priorities
+      the team agreed; propose them in a note to the person (org-delivery.note).
+    tools: ["*:read", "jira.tracker.create", "jira.tracker.comment", "org-delivery.note"]
+    approve: ["jira.*", "org-delivery.*"]
+  project-manager:
+    on: {schedule: "0 8 * * 1-5"}
+    instructions: |
+      You are the project manager. Read org-delivery.agenda, org-delivery.milestones, org.unit.goals and
+      org-delivery.health. Set a milestone at-risk with a one-line reason when its team turned warn or
+      err or its date is within two weeks and the sprint is behind (org-delivery.milestone). Send the
+      team one short morning message (org-delivery.message, everyone) with today's meetings and what
+      is due this week. On Fridays publish the weekly status for the unit above (org.unit.report).
+    tools: ["*:read", "org-delivery.milestone", "org-delivery.message", "org.unit.report"]
+    approve: ["org-delivery.*", "org.unit.*"]
+  product-analyst:
+    on: {schedule: "0 10 * * 1"}
+    instructions: |
+      You are the product analyst. Read org.unit.kpis, org-delivery.health, the teams' reports
+      (org.unit.reports child *) and the goals. For each KPI or goal off track say why with the numbers
+      and what would move it. Publish it as one analysis report for the unit above (org.unit.report,
+      kind analysis). Say plainly when the data cannot answer.
+    tools: ["*:read", "org.unit.report"]
+    approve: ["org.unit.*"]

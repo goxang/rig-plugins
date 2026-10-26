@@ -3,7 +3,7 @@ config:
   user: {type: string, description: "Cloud: the account email; leave out for a Server PAT"}
   token: {type: string, secret: true}
   project: {type: string, description: "default project key"}
-permissions: {secrets: [JIRA_TOKEN, JIRA_API_TOKEN, ATLASSIAN_TOKEN]}
+permissions: {secrets: [JIRA_TOKEN, JIRA_API_TOKEN, ATLASSIAN_TOKEN, JIRA_URL, JIRA_USER, JIRA_PROJECT]}
 # The same keys on every issue list: v details, m move, e edit, c comment, a assign, I hand it to the
 # AI, o its merge request.
 views:
@@ -16,8 +16,9 @@ views:
         source: jira.tracker.board
         by: status
         card: title
-        meta: [type, assignee]
+        meta: [type, priority, assignee]
         refresh: 60s
+        drop: {action: jira.tracker.transition, args: {key: '${row.key}', status: '${lane}'}}
         preview: {source: jira.tracker.issue, args: {key: '${row.key}'}, field: markdown, width: 45%}
         actions:
           - {key: m, name: move, action: jira.tracker.transition, args: {key: '${row.key}', status: '${pick:status}'}}
@@ -26,6 +27,28 @@ views:
           - {key: a, name: assign, action: jira.tracker.assign, args: {key: '${row.key}', assignee: '${ask:assignee}'}}
           - {key: I, name: AI does it, ai: 'Do ${row.key} "${row.title}" (skill issue-flow: branch, implement, push, open the MR).'}
           - {key: o, name: its MR (GitLab), command: 'open GitLab ${row.key}'}
+      Backlog:
+        grid:
+          - - widget: table
+              title: Backlog
+              source: jira.tracker.backlog
+              refresh: 60s
+              width: 65%
+              mark: key
+              columns: {url: {hide: true}, updated: {hide: true}}
+              preview: {source: jira.tracker.issue, args: {key: '${row.key}'}, field: markdown, width: 45%}
+              actions:
+                - {key: s, name: to a sprint, action: jira.tracker.sprint-move, args: {key: '${row.key}', sprint: '${ask:sprint}'}}
+                - {key: m, name: move, action: jira.tracker.transition, args: {key: '${row.key}', status: '${pick:status}'}}
+                - {key: e, name: edit, action: jira.tracker.update, args: {key: '${row.key}', summary: '${ask:title}'}}
+                - {key: a, name: assign, action: jira.tracker.assign, args: {key: '${row.key}', assignee: '${ask:assignee}'}}
+            - {widget: form, title: New issue, action: jira.tracker.create, submit: Create}
+      Epics:
+        widget: table
+        source: jira.tracker.epics
+        refresh: 5m
+        columns: {url: {hide: true}}
+        preview: {source: jira.tracker.issue, args: {key: '${row.key}'}, field: markdown, width: 50%}
       Mine:
         widget: table
         source: jira.tracker.issues
@@ -54,3 +77,7 @@ views:
           - {key: a, name: assign, action: jira.tracker.assign, args: {key: '${row.key}', assignee: '${ask:assignee}'}}
           - {key: I, name: AI does it, ai: 'Do ${row.key} "${row.title}" (skill issue-flow: branch, implement, push, open the MR).'}
           - {key: o, name: its MR (GitLab), command: 'open GitLab ${row.key}'}
+      Connection:
+        grid:
+          - - {widget: kv, title: Account, source: jira.connection, refresh: 60s, width: 40%}
+            - {widget: form, title: Connect Jira, action: jira.connect, submit: Connect}

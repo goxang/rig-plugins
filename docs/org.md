@@ -10,6 +10,7 @@ edit, is up to the layer's own plugin. The protocol is shared; the pages are not
 | layer | plugin | tabs | its own records |
 |---|---|---|---|
 | team | `org-team` (pack) | the team's usual tabs, plus Team | items, requests; exposes sources and actions |
+| delivery (product owner, project manager, analyst) | `org-delivery` | Home, Jira, Goals, Reports, Live, Calendar, Roadmap, Team, Confluence, Mail, Notes, Setup | team members, meetings (mail invites), milestones, scheduled team messages, private notes |
 | department | `org-management` | Department, Teams, Commitments, Capacity, Requests, Live | commitments |
 | product office | `org-product` | Overview, Intake, Portfolio, Roadmap, Specs, Releases, Metrics | initiatives (RICE), intake, specs, releases |
 | technology (CTO, IT deputy) | `org-technology` | Scorecard, Live, Units, Programs, Architecture, Risks | programs, ADRs, radar, risks |
@@ -32,6 +33,8 @@ The project's `ui: {title: ...}` merges over it. Each also ships agent templates
 | `org.unit.items` / `org.unit.item` | risks, incidents, highlights, decisions |
 | `org.unit.requests` / `org.unit.request` | asks sent down, answered by the unit |
 | `org.unit.children` | each child's reachability and roll-up |
+| `org.unit.goals` / `org.unit.goal` | goals given down (`to=child`), each measured on one of the child's KPIs against a target (`>= 99.9`) |
+| `org.unit.reports` / `org.unit.report` | status, release and retro reports published upward; `child=*` reads the units below's |
 | `org.unit.exposed` / `org.unit.show` / `org.unit.invoke` | what a unit below publishes upward |
 
 A unit publishes with `expose:` in its `org` config:
@@ -46,6 +49,9 @@ expose:
 The units above get each as a card: a source in its widget, an action as a form. `from:` passes a
 child's exposure one level up, so a team's live graph can reach the executive without the
 executive ever reading the team.
+
+`org-delivery` works on top of `jira`, `confluence` and `mail`. Each connects from its Setup tab: an
+address, a user and an API token (an app password for Gmail), kept in the project's rig secrets.
 
 ## Security
 
